@@ -136,8 +136,8 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .tablewrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 0; }
 .board {
   position: relative;
-  width: calc(var(--cols) * (var(--tw) + var(--gap)) + 16px);
-  height: calc(var(--rows) * (var(--th) + var(--gap)) + 16px);
+  width: calc(var(--cols) * (var(--tw) + var(--gap)) + 28px);
+  height: calc(var(--rows) * (var(--th) + var(--gap)) + 28px);
   border-radius: 18px;
   background:
     radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%),
@@ -146,7 +146,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   flex: none;
 }
 .board.mine::after {
-  content: ""; position: absolute; inset: 8px; border-radius: 10px; pointer-events: none;
+  content: ""; position: absolute; inset: 14px; border-radius: 10px; pointer-events: none;
   background-image:
     linear-gradient(to right, rgba(255,255,255,.07) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255,255,255,.07) 1px, transparent 1px);

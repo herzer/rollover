@@ -38,6 +38,19 @@ export function deviceId(code: string | null, fresh = false): string {
   } catch { return make(); }
 }
 
+/** A per-device secret that proves a seat is ours when we reconnect. */
+export function deviceSecret(fresh = false): string {
+  const key = 'rollover.secret';
+  const make = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  try {
+    const existing = sessionStorage.getItem(key) || (fresh ? null : localStorage.getItem(key));
+    const v = existing || make();
+    sessionStorage.setItem(key, v);
+    if (!fresh) localStorage.setItem(key, v);
+    return v;
+  } catch { return make(); }
+}
+
 /** True when this browser has joined the game with this code before. */
 export function knownGame(code: string): boolean {
   try { return !!(sessionStorage.getItem('rollover.id.' + code) || localStorage.getItem('rollover.id.' + code)); } catch { return false; }
@@ -64,6 +77,7 @@ export class Client {
   /** True when this guest talks to the host through the relay. */
   viaRelay = false;
 
+  secret = '';
   constructor(public clientId: string, public name: string, public code: string | null) {}
 
   on(fn: (e: ClientEvent) => void) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -93,6 +107,7 @@ export class Client {
       case 'error': this.emit({ t: 'error', error: msg.error }); break;
       case 'full': this.status = 'full'; this.emit({ t: 'update' }); break;
       case 'pong': break;
+      case 'who': this.send({ t: 'hello', clientId: this.clientId, name: this.name, secret: this.secret }); break;
     }
   }
 
@@ -102,10 +117,11 @@ export class Client {
   static host(name: string, code: string | null, saved?: { lobby: Lobby; state: GameState | null }): Client {
     const id = saved?.lobby.hostId ?? deviceId(code);
     const c = new Client(id, name, saved ? saved.lobby.code : code);
-    c.host = new Host(id, name, c.code, saved);
+    c.secret = saved?.lobby.secrets?.[id] ?? deviceSecret();
+    c.host = new Host(id, name, c.code, saved, c.secret);
     c.host.attach(id, (m) => queueMicrotask(() => c.handle(m)));
     c.status = 'ok';
-    c.send({ t: 'hello', clientId: id, name });
+    c.send({ t: 'hello', clientId: id, name, secret: c.secret });
     if (saved) c.host.kick();
     if (c.code) { c.openHostPeer(0); c.openHostRelay(); }
     return c;
@@ -118,16 +134,19 @@ export class Client {
     this.peer = peer;
     peer.on('connection', (conn) => {
       let clientId: string | null = null;
+      const send = (m: ToClient) => { if (conn.open) conn.send(m); };
       conn.on('data', (raw) => {
         const msg = raw as ToHost;
-        if (msg.t === 'hello') {
+        if (msg?.t === 'hello' && !clientId) {
+          // one identity per connection, and never the host's own
+          if (typeof msg.clientId !== 'string' || msg.clientId === host.lobby.hostId) { conn.close(); return; }
           clientId = msg.clientId;
-          host.attach(clientId, (m) => { if (conn.open) conn.send(m); });
+          host.attach(clientId, send);
         }
-        if (clientId) host.receive(clientId, msg);
+        if (clientId) host.receive(clientId, msg?.t === 'hello' ? { ...msg, clientId } : msg);
       });
-      conn.on('close', () => { if (clientId) host.detach(clientId); });
-      conn.on('error', () => { if (clientId) host.detach(clientId); });
+      conn.on('close', () => { if (clientId) host.detach(clientId, send); });
+      conn.on('error', () => { if (clientId) host.detach(clientId, send); });
     });
     peer.on('disconnected', () => { if (!this.disposed && !peer.destroyed) setTimeout(() => peer.reconnect(), 1500); });
     peer.on('error', (err: { type?: string }) => {
@@ -148,17 +167,20 @@ export class Client {
       c.subscribe(upTopic(code));
       c.on('message', (_topic, payload) => {
         const m = decode<{ from: string; msg: ToHost | { t: 'ping' } }>(payload);
-        if (!m || typeof m.from !== 'string' || !m.msg) return;
-        const known = this.relaySeen.has(m.from);
-        this.relaySeen.set(m.from, Date.now());
-        const reply = (out: ToClient) => c.publish(downTopic(code, m.from), encode(out));
-        if (!known || m.msg.t === 'hello') host.attach(m.from, reply);
-        if (m.msg.t === 'ping') {
-          reply({ t: 'pong' });
-          if (!known) host.receive(m.from, { t: 'hello', clientId: m.from, name: '' });
+        if (!m || typeof m.from !== 'string' || !m.msg || m.from === host.lobby.hostId) return;
+        const from = m.from;
+        const reply = (out: ToClient) => c.publish(downTopic(code, from), encode(out));
+        if (m.msg.t === 'hello') {
+          host.attach(from, reply);
+          host.receive(from, { ...m.msg, clientId: from });
+          if (host.isAttached(from)) this.relaySeen.set(from, Date.now());
           return;
         }
-        host.receive(m.from, m.msg);
+        // nothing but hello is accepted from someone who has not said hello (e.g. after a host reload)
+        if (!this.relaySeen.has(from)) { reply({ t: 'who' }); return; }
+        this.relaySeen.set(from, Date.now());
+        if (m.msg.t === 'ping') { reply({ t: 'pong' }); return; }
+        host.receive(from, m.msg);
       });
     });
     this.relayTimer = setInterval(() => {
@@ -170,6 +192,7 @@ export class Client {
 
   static join(code: string, name: string, fresh = false): Client {
     const c = new Client(deviceId(code, fresh), name, code);
+    c.secret = deviceSecret(fresh);
     if (new URLSearchParams(location.search).has('relay')) c.useRelay(); else c.connectGuest();
     return c;
   }
@@ -192,6 +215,7 @@ export class Client {
       peer.on('disconnected', () => { if (!this.disposed && !peer.destroyed) setTimeout(() => peer.reconnect(), 1500); });
     }
     const go = () => {
+      this.conn?.close(); // never keep a stale link open beside the new one
       const conn = peer.connect(PREFIX + this.code, { reliable: true });
       this.conn = conn;
       const timeout = setTimeout(() => {
@@ -203,11 +227,11 @@ export class Client {
       conn.on('open', () => {
         clearTimeout(timeout);
         this.status = 'ok';
-        conn.send({ t: 'hello', clientId: this.clientId, name: this.name } satisfies ToHost);
+        conn.send({ t: 'hello', clientId: this.clientId, name: this.name, secret: this.secret } satisfies ToHost);
         this.emit({ t: 'update' });
       });
       conn.on('data', (raw) => this.handle(raw as ToClient));
-      conn.on('close', () => { clearTimeout(timeout); if (this.status !== 'full') this.again(); });
+      conn.on('close', () => { clearTimeout(timeout); if (this.conn === conn && this.status !== 'full') this.again(); });
     };
     if (peer.open) go(); else peer.once('open', go);
   }
@@ -230,7 +254,7 @@ export class Client {
         if (this.status !== 'ok' && this.status !== 'full') { this.status = 'ok'; this.emit({ t: 'update' }); }
         this.handle(m);
       });
-      const hello = () => this.send({ t: 'hello', clientId: this.clientId, name: this.name });
+      const hello = () => this.send({ t: 'hello', clientId: this.clientId, name: this.name, secret: this.secret });
       hello();
       this.lastHeard = Date.now();
       this.relayTimer = setInterval(() => {

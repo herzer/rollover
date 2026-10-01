@@ -148,3 +148,28 @@ describe('computer player', () => {
     }
   }, 120000);
 });
+
+describe('fairness and safety', () => {
+  it('rejects tiles outside the table or stacked in one cell', () => {
+    const s = stateWith([T(0, 9), T(1, 9), T(2, 9)]);
+    const off: Placed[] = [{ id: 0, r: 9, c: 0 }, { id: 1, r: 9, c: 1 }, { id: 2, r: 9, c: 2 }];
+    expect(validateCommit(s, 0, off)).toEqual({ ok: false, error: 'invalid-melds' });
+    const stacked: Placed[] = [{ id: 0, r: 0, c: 0 }, { id: 1, r: 0, c: 0 }, { id: 2, r: 0, c: 1 }];
+    expect(validateCommit(s, 0, stacked)).toEqual({ ok: false, error: 'invalid-melds' });
+  });
+  it('never lays melds below the table, even when it is crowded', () => {
+    const rows = Array.from({ length: 9 }, (_, r) => [r * 3, r * 3 + 1, r * 3 + 2]);
+    const crowded = layoutMelds([], []).concat(rows.flatMap((ids, r) => ids.map((id, i) => ({ id, r, c: 10 + i }))));
+    const out = layoutMelds(crowded, [...rows, Array.from({ length: 13 }, (_, i) => 100 + i)]);
+    expect(out.every((p) => p.r < 9 && p.c < 26)).toBe(true);
+    expect(out.length).toBe(27 + 13);
+  });
+  it('does not send the deal seed to guests', async () => {
+    const { redact } = await import('../src/net/host');
+    const s = newGame([{ id: 'a', name: 'A', kind: 'human' }, { id: 'b', name: 'B', kind: 'human' }]);
+    const r = redact(s, 1);
+    expect(r.seed).toBe(0);
+    expect(r.players[0].rack.every((id) => id === -1)).toBe(true);
+    expect(r.pool.every((id) => id === -1)).toBe(true);
+  });
+});

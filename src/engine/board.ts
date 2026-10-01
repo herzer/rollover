@@ -107,8 +107,21 @@ export function layoutMelds(oldBoard: Placed[], melds: number[][]): Placed[] {
   }
   // pass 3: everything else goes to the first free spot
   for (const m of rest) {
-    const spot = findSpot(occupied, m.length) ?? findSpot(occupied, m.length, BOARD_ROWS + 4);
-    if (spot) claim(m, spot.r, spot.c);
+    const spot = findSpot(occupied, m.length);
+    if (!spot) return compactLayout(melds);
+    claim(m, spot.r, spot.c);
+  }
+  return out;
+}
+
+/** Packs every meld row by row, one empty cell apart — used when the table is too full to keep places. */
+export function compactLayout(melds: number[][]): Placed[] {
+  const out: Placed[] = [];
+  let r = 0, c = 0;
+  for (const m of [...melds].sort((a, b) => b.length - a.length)) {
+    if (c > 0 && c + m.length > BOARD_COLS) { r++; c = 0; }
+    m.forEach((id, i) => out.push({ id, r, c: c + i }));
+    c += m.length + 1;
   }
   return out;
 }

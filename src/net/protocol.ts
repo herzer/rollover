@@ -16,10 +16,12 @@ export interface Lobby {
   seats: SeatInfo[];
   rules: Rules;
   started: boolean;
+  /** Host only, never sent: the secret each device proved when it took its seat. */
+  secrets?: Record<string, string>;
 }
 
 export type ToHost =
-  | { t: 'hello'; clientId: string; name: string }
+  | { t: 'hello'; clientId: string; name: string; secret: string }
   | { t: 'commit'; board: Placed[]; seq: number }
   | { t: 'draw'; seq: number }
   | { t: 'draft'; board: Placed[]; seq: number }
@@ -32,6 +34,7 @@ export type ToClient =
   | { t: 'react'; seat: number; emoji: string }
   | { t: 'error'; error: string }
   | { t: 'full' }
-  | { t: 'pong' };
+  | { t: 'pong' }
+  | { t: 'who' };
 
 export const REACTIONS = ['👏', '😂', '😮', '😅', '❤️', '🎉', '🤔', '😎'];

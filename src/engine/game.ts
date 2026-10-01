@@ -2,7 +2,7 @@
 // guests only ever receive the resulting state.
 
 import { makeTiles, rackPoints, rng, shuffle, type Tile } from './tiles';
-import { checkBoard, cellKey, tidyBoard, type Placed } from './board';
+import { checkBoard, cellKey, tidyBoard, BOARD_COLS, BOARD_ROWS, type Placed } from './board';
 import { DEFAULT_RULES, type Rules } from './melds';
 
 export type PlayerKind = 'human' | 'ai';
@@ -40,7 +40,10 @@ export type LogEntry =
 
 export interface GameState {
   v: 1;
+  /** Secret: the deal can be rebuilt from it, so the host never sends it to guests. */
   seed: number;
+  /** Not secret: names this round for local keys (rack layout, scoreboard). */
+  gameId: string;
   round: number;
   rules: Rules;
   tiles: Tile[];
@@ -76,7 +79,7 @@ export function newGame(seats: SeatSpec[], rules: Rules = DEFAULT_RULES, seed = 
     score: prev?.players[i]?.score ?? 0,
   }));
   return {
-    v: 1, seed, round: (prev?.round ?? 0) + 1, rules, tiles, pool, board: [], players,
+    v: 1, seed, gameId: Math.random().toString(36).slice(2, 10), round: (prev?.round ?? 0) + 1, rules, tiles, pool, board: [], players,
     turn: prev ? (prev.round % seats.length) : 0, turnNo: 0, turnStartedAt: Date.now(), passes: 0,
     phase: 'playing', winner: null, roundDelta: null, reveals: [], log: [], seq: 1,
   };
@@ -103,6 +106,13 @@ export function validateCommit(state: GameState, seat: number, board: Placed[]):
   const before = new Set(state.board.map((p) => p.id));
   const after = new Set(board.map((p) => p.id));
   if (after.size !== board.length) return { ok: false, error: 'invalid-melds' };
+  const cells = new Set<number>();
+  for (const p of board) {
+    if (!Number.isInteger(p.r) || !Number.isInteger(p.c) || p.r < 0 || p.r >= BOARD_ROWS || p.c < 0 || p.c >= BOARD_COLS) return { ok: false, error: 'invalid-melds' };
+    const k = cellKey(p.r, p.c);
+    if (cells.has(k)) return { ok: false, error: 'invalid-melds' };
+    cells.add(k);
+  }
   for (const id of before) if (!after.has(id)) return { ok: false, error: 'tiles-missing' };
   const rack = new Set(player.rack);
   const played = board.map((p) => p.id).filter((id) => !before.has(id));

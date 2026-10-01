@@ -17,6 +17,7 @@ export function redact(state: GameState, seat: number): GameState {
     if (!canSee(state, seat, i)) p.rack = p.rack.map(() => -1);
   });
   s.pool = s.pool.map(() => -1);
+  s.seed = 0; // the deal could be rebuilt from it
   return s;
 }
 
@@ -29,7 +30,7 @@ export class Host {
   private aiTimer: ReturnType<typeof setTimeout> | null = null;
   onChange: () => void = () => {};
 
-  constructor(hostId: string, hostName: string, code: string | null, saved?: { lobby: Lobby; state: GameState | null }) {
+  constructor(hostId: string, hostName: string, code: string | null, saved?: { lobby: Lobby; state: GameState | null }, hostSecret = '') {
     if (saved) {
       this.lobby = saved.lobby;
       this.state = saved.state;
@@ -39,6 +40,7 @@ export class Host {
         code, hostId, started: false,
         rules: { ...DEFAULT_RULES },
         seats: [{ id: hostId, name: hostName, kind: 'human', online: true }],
+        secrets: { [hostId]: hostSecret },
       };
     }
     try {
@@ -62,7 +64,11 @@ export class Host {
     this.clients.set(clientId, send);
   }
 
-  detach(clientId: string) {
+  isAttached(clientId: string) { return this.clients.has(clientId); }
+
+  /** `send` given: only detach if that connection is still the current one for this player. */
+  detach(clientId: string, send?: Send) {
+    if (send && this.clients.get(clientId) !== send) return;
     this.clients.delete(clientId);
     const seat = this.lobby.seats.find((s) => s.id === clientId);
     if (seat) { seat.online = false; this.broadcast(); }
@@ -72,10 +78,14 @@ export class Host {
     const send = this.clients.get(clientId);
     if (msg.t === 'hello') {
       let seat = this.lobby.seats.find((s) => s.id === clientId);
+      // a seat belongs to the device that took it: its secret must match
+      const known = this.lobby.secrets?.[clientId];
+      if (seat && known && known !== msg.secret) { send?.({ t: 'full' }); this.clients.delete(clientId); return; }
       if (!seat) {
         if (this.lobby.started || this.lobby.seats.length >= 4) { send?.({ t: 'full' }); return; }
         seat = { id: clientId, name: (msg.name || 'Player').slice(0, 20), kind: 'human', online: true };
         this.lobby.seats.push(seat);
+        (this.lobby.secrets ??= {})[clientId] = msg.secret;
       } else if (msg.name) {
         seat.name = msg.name.slice(0, 20);
         if (this.state) { const p = this.state.players.find((p) => p.id === clientId); if (p) p.name = seat.name; }
@@ -145,6 +155,7 @@ export class Host {
 
   private setState(s: GameState) {
     this.state = s;
+    this.job++; // any computer move still being thought about belongs to an older turn
     this.broadcast();
     this.scheduleAi();
   }
@@ -152,7 +163,7 @@ export class Host {
   private sendState(clientId: string) {
     const send = this.clients.get(clientId);
     if (!send) return;
-    send({ t: 'lobby', lobby: this.lobby });
+    send({ t: 'lobby', lobby: { ...this.lobby, secrets: undefined } });
     if (!this.state) { send({ t: 'state', state: null, seat: -1 }); return; }
     const seat = this.state.players.findIndex((p) => p.id === clientId);
     send({ t: 'state', state: redact(this.state, seat), seat });

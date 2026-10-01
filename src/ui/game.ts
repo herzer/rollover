@@ -13,14 +13,20 @@ import { sfx, isMuted, setMuted } from './sound';
 import { confetti } from './fx';
 
 const RACK_ROWS = 2;
-export const FINISHES = ['', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'];
-/** The suite default until a player picks their own. */
-export const DEFAULT_FINISH = '';
+export const FINISHES = ['ts-gummy', 'ts-sugar', 'ts-hardcandy', '', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'];
+/** Candy is the game's look (Stefanie, 2026-09-30); the classic finishes stay in the palette. */
+export const DEFAULT_FINISH = 'ts-gummy';
 export function finish(): string {
   try { const f = localStorage.getItem('rollover.finish'); if (f !== null && FINISHES.includes(f)) return f; } catch { /* storage blocked */ }
   return DEFAULT_FINISH;
 }
-function setFinish(f: string) { try { localStorage.setItem('rollover.finish', f); } catch { /* storage blocked */ } }
+function setFinish(f: string) { try { localStorage.setItem('rollover.finish', f); } catch { /* storage blocked */ } applyFinish(); }
+/** The finish lives on <body>, so the home screen and lobby tiles match the game. */
+export function applyFinish() {
+  for (const f of FINISHES) if (f) document.body.classList.remove(f);
+  const f = finish();
+  if (f) document.body.classList.add(f);
+}
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -51,6 +57,8 @@ export class GameView {
   private tileEls = new Map<number, HTMLElement>();
   private draft: Placed[] | null = null;
   private draftKey = '';
+  /** The state seq a commit or draw was sent for; buttons wait until the answer arrives. */
+  private sentSeq = -1;
   private rackPos = new Map<number, { r: number; c: number }>();
   private selected = new Set<number>();
   private hint: Move | null = null;
@@ -71,7 +79,7 @@ export class GameView {
   constructor(private root: HTMLElement, private client: Client, private onLeave: () => void) {
     this.el = document.createElement('div');
     this.el.className = 'game';
-    if (finish()) this.el.classList.add(finish());
+    applyFinish();
     root.replaceChildren(this.el);
     this.build();
     this.off = client.on((e) => this.onEvent(e));
@@ -198,7 +206,7 @@ export class GameView {
     return s.board;
   }
 
-  private rackKey() { const s = this.s; return s ? `rollover.rack.${s.seed}.${this.seat}` : ''; }
+  private rackKey() { const s = this.s; return s ? `rollover.rack.${s.gameId}.${this.seat}` : ''; }
   private loadRack() {
     try {
       const raw = JSON.parse(localStorage.getItem(this.rackKey()) || 'null') as [number, { r: number; c: number }][] | null;
@@ -245,7 +253,7 @@ export class GameView {
     const W = this.el.clientWidth || window.innerWidth;
     const H = this.el.clientHeight || window.innerHeight;
     const gap = W < 700 ? 2 : 4;
-    const byW = (W - 40) / BOARD_COLS - gap;
+    const byW = (W - 52) / BOARD_COLS - gap;
     const chrome = 56 + 28 + 64 + 46 + 30 + (this.el.querySelector('.reveals')?.clientHeight ?? 0);
     // aim for rack tiles of about 50px — comfortable for fingers — even when the table must be smaller
     const k = (tw: number) => Math.min(2.2, Math.max(1, 52 / tw));
@@ -274,7 +282,7 @@ export class GameView {
   private origin(area: Area) {
     const host = this.el.getBoundingClientRect();
     const box = (area === 'board' ? this.boardEl : this.rackEl).getBoundingClientRect();
-    return { x: box.left - host.left + (area === 'board' ? 8 : 10), y: box.top - host.top + (area === 'board' ? 8 : 9), box, host };
+    return { x: box.left - host.left + (area === 'board' ? 14 : 10), y: box.top - host.top + (area === 'board' ? 14 : 9), box, host };
   }
 
   private cellXY(area: Area, r: number, c: number) {
@@ -287,7 +295,7 @@ export class GameView {
 
   private onEvent(e: ClientEvent) {
     if (e.t === 'react') { this.floatReaction(e.seat, e.emoji); return; }
-    if (e.t === 'error') { sfx.error(); this.toast(t().errors[e.error] ?? e.error, true); return; }
+    if (e.t === 'error') { this.sentSeq = -1; this.render(); sfx.error(); this.toast(t().errors[e.error] ?? e.error, true); return; }
     if (e.t === 'draft') { this.render(); return; }
     this.onState();
   }
@@ -304,15 +312,14 @@ export class GameView {
       this.selected.clear();
       this.closeModal();
     }
-    // a new turn throws away any draft and hint
-    const key = `${s.round}:${s.turnNo}:${s.seq}`;
-    if (this.myTurn) {
-      if (this.draftKey.split(':').slice(0, 2).join(':') !== `${s.round}:${s.turnNo}` || !this.draft) {
-        this.draft = s.board.map((p) => ({ ...p }));
-        this.hint = null;
-      }
+    // a new turn throws away any draft and hint — a brief disconnect does not
+    const key = `${s.round}:${s.turnNo}`;
+    const mineInState = s.phase === 'playing' && s.turn === this.seat;
+    if (mineInState) {
+      if (this.draftKey !== key || !this.draft) { this.draft = s.board.map((p) => ({ ...p })); this.hint = null; }
     } else { this.draft = null; this.hint = null; }
     this.draftKey = key;
+    if (s.seq !== this.sentSeq) this.sentSeq = -1;
 
     // what happened since the last update
     const fresh = s.board.filter((p) => !this.prevBoard.has(p.id)).map((p) => p.id);
@@ -372,7 +379,7 @@ export class GameView {
     this.boardEl.innerHTML = watching || mine ? check.segs.map((g) => {
       const xy = this.cellXY('board', g.r, g.c);
       const o = this.origin('board');
-      const x = xy.x - (o.box.left - o.host.left) - 3, y = xy.y - (o.box.top - o.host.top) - 3;
+      const x = xy.x - (o.box.left - o.host.left) - this.boardEl.clientLeft - 3, y = xy.y - (o.box.top - o.host.top) - this.boardEl.clientTop - 3;
       return `<div class="seg ${g.eval.ok ? 'ok' : 'bad'}${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.tw + this.gap) - this.gap + 6}px;height:${this.th + 6}px"></div>`;
     }).join('') : '';
 
@@ -476,8 +483,9 @@ export class GameView {
     const changed = this.myTurn && board.length !== s.board.length;
     btn('undo').disabled = !this.myTurn || !this.draftDiffers();
     btn('hint').disabled = !this.myTurn;
-    btn('draw').disabled = !this.myTurn;
-    btn('done').disabled = !this.myTurn || !changed;
+    const waiting = this.sentSeq === s.seq;
+    btn('draw').disabled = !this.myTurn || waiting;
+    btn('done').disabled = !this.myTurn || !changed || waiting;
     btn('done').classList.toggle('ready', changed && valid);
     const drawLabel = this.el.querySelector('[data-ref="drawLabel"]') as HTMLElement;
     drawLabel.textContent = s.pool.length ? tt.draw : tt.pass;
@@ -530,11 +538,15 @@ export class GameView {
         this.selected.clear();
         sfx.draw();
         this.client.send({ t: 'draw', seq: s.seq });
+        this.sentSeq = s.seq;
+        this.render();
         break;
       case 'done':
         if (!this.draft) return;
         this.selected.clear();
         this.client.send({ t: 'commit', board: this.draft, seq: s.seq });
+        this.sentSeq = s.seq;
+        this.render();
         break;
     }
   }
@@ -625,6 +637,12 @@ export class GameView {
       this.selected.clear();
     }
     this.render();
+    for (const id of d.group) {
+      const el = this.tileEls.get(id);
+      if (!el) continue;
+      el.classList.remove('boing'); void el.offsetWidth; el.classList.add('boing');
+      setTimeout(() => el.classList.remove('boing'), 520);
+    }
   };
 
   private orderedSelection(): number[] {
@@ -642,10 +660,10 @@ export class GameView {
     for (const area of ['board', 'rack'] as Area[]) {
       const box = (area === 'board' ? this.boardEl : this.rackEl).getBoundingClientRect();
       if (x < box.left - 20 || x > box.right + 20 || y < box.top - 20 || y > box.bottom + 20) continue;
-      const pad = area === 'board' ? 8 : 10;
+      const pad = area === 'board' ? 14 : 10;
       const z = this.size(area);
       const c = Math.floor((x - box.left - pad) / (z.w + this.gap));
-      const r = Math.floor((y - box.top - (area === 'board' ? 8 : 9)) / (z.h + this.gap));
+      const r = Math.floor((y - box.top - (area === 'board' ? 14 : 9)) / (z.h + this.gap));
       const rows = area === 'board' ? BOARD_ROWS : this.rackRows;
       const cols = area === 'board' ? BOARD_COLS : this.rackCols;
       return { area, r: Math.max(0, Math.min(rows - 1, r)), c: Math.max(0, Math.min(cols - 1, c)) };
@@ -696,6 +714,11 @@ export class GameView {
       }
     }
     if (!ok) return false;
+    // before your opening the table must stay exactly as it is, so its tiles are never pushed aside
+    if (area === 'board' && !s.players[this.seat].opened && [...moves.keys()].some((id) => tableAtStart.has(id))) {
+      this.toast(t().errors['opening-touched-table'], true);
+      return false;
+    }
 
     if (area === 'board') {
       const board = this.draft!.filter((p) => !moving.has(p.id)).map((p) => (moves.has(p.id) ? { ...p, c: moves.get(p.id)! } : p));
@@ -811,10 +834,7 @@ export class GameView {
     pop.addEventListener('click', (ev) => {
       const b = (ev.target as HTMLElement).closest('[data-finish]') as HTMLElement | null;
       if (!b) return;
-      for (const f of FINISHES) if (f) this.el.classList.remove(f);
-      const f = b.dataset.finish!;
-      setFinish(f);
-      if (f) this.el.classList.add(f);
+      setFinish(b.dataset.finish!);
       pop.remove();
       sfx.place();
     });
@@ -865,7 +885,7 @@ export class GameView {
 export function recordWin(s: GameState) {
   try {
     const seen = JSON.parse(localStorage.getItem('rollover.scored') || '[]') as string[];
-    const key = `${s.seed}:${s.round}`;
+    const key = `${s.gameId}:${s.round}`;
     if (seen.includes(key) || s.winner === null) return;
     seen.push(key);
     localStorage.setItem('rollover.scored', JSON.stringify(seen.slice(-200)));

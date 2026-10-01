@@ -27,6 +27,8 @@
   /* tile geometry, set from JS to fit the window */
   --tw: 44px;
   --th: 58px;
+  --rtw: 44px;
+  --rth: 58px;
   --gap: 4px;
   color-scheme: light;
 }
@@ -136,11 +138,11 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .status .sub { font-weight: 600; color: var(--soft); margin-left: 8px; }
 .status .sub.ok { color: var(--accent); }
 
-.tablewrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 4px 10px; min-height: 0; }
+.tablewrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 0; }
 .board {
   position: relative;
-  width: calc(var(--cols) * (var(--tw) + var(--gap)) + 16px);
-  height: calc(var(--rows) * (var(--th) + var(--gap)) + 16px);
+  width: calc(var(--cols) * (var(--tw) + var(--gap)) + 28px);
+  height: calc(var(--rows) * (var(--th) + var(--gap)) + 28px);
   border-radius: 18px;
   background:
     radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%),
@@ -149,7 +151,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   flex: none;
 }
 .board.mine::after {
-  content: ""; position: absolute; inset: 8px; border-radius: 10px; pointer-events: none;
+  content: ""; position: absolute; inset: 14px; border-radius: 10px; pointer-events: none;
   background-image:
     linear-gradient(to right, rgba(255,255,255,.07) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255,255,255,.07) 1px, transparent 1px);
@@ -163,8 +165,8 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .rackwrap { display: flex; justify-content: center; padding: 6px 10px 4px; }
 .rack {
   position: relative;
-  width: calc(var(--rcols) * (var(--tw) + var(--gap)) + 20px);
-  height: calc(var(--rrows) * (var(--th) + var(--gap)) + 18px);
+  width: calc(var(--rcols) * (var(--rtw) + var(--gap)) + 20px);
+  height: calc(var(--rrows) * (var(--rth) + var(--gap)) + 18px);
   border-radius: 12px;
   background:
     repeating-linear-gradient(92deg, rgba(255,255,255,.04) 0 3px, rgba(0,0,0,.03) 3px 7px),
@@ -203,7 +205,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   display: grid; place-items: center;
   pointer-events: auto; cursor: grab;
   touch-action: none; user-select: none; -webkit-user-select: none;
-  transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .2s, filter .2s;
+  transition: transform .32s cubic-bezier(.2,.8,.2,1), width .25s, height .25s, box-shadow .2s, filter .2s;
   will-change: transform;
 }
 .tile::before {
@@ -232,6 +234,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   filter: drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 -.5px 0 rgba(60,40,10,.35));
   pointer-events: none;
 }
+.tiles .tile.onrack { --tw: var(--rtw); --th: var(--rth); }
 .tile.c0 { --tc: var(--t-red); }
 .tile.c1 { --tc: var(--t-blue); }
 .tile.c2 { --tc: var(--t-orange); }
@@ -298,9 +301,17 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .modal li { margin: 0 0 8px; }
 .confetti { position: absolute; inset: 0; pointer-events: none; z-index: 99; }
 .rotate-hint { display: none; }
-@media (max-width: 560px) and (orientation: portrait) {
-  .game .rotate-hint { display: block; position: absolute; top: 60px; left: 16px; right: 16px; z-index: 60; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-weight: 700; text-align: center; }
+@media (orientation: portrait) and (max-width: 900px) {
+  .game .rotate-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--soft); font-size: 13px; font-weight: 700; padding: 2px 0 4px; }
 }
+
+.popover.finishes { grid-template-columns: repeat(3, 84px); }
+.popover.finishes button { height: auto; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; border: 2px solid transparent; }
+.popover.finishes button.on { border-color: var(--accent); background: var(--accent-soft); }
+.popover.finishes small { font: 700 11.5px/1.1 "Nunito", sans-serif; color: var(--ink); }
+.status .btn.sm { vertical-align: middle; margin-left: 8px; }
+.status { height: auto; min-height: 28px; }
+.devpanel { position: absolute; left: 12px; bottom: 70px; z-index: 120; background: var(--paper); border: 2px dashed #c026d3; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
 
 /* Six tile finishes. The base `.tile` rules in styles.css are finish 1, Ivory.
    A finish is chosen by a class on any ancestor: .ts-porcelain, .ts-jade, .ts-wood, .ts-glass, .ts-clay. */
@@ -430,6 +441,179 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   filter: drop-shadow(-1px -1px 0 rgba(255,255,255,.75)) drop-shadow(1px 2px 1.5px rgba(60,35,10,.35));
 }
 
+/* The candy look (2026-09-30, Stefanie: "totally playful … a lot of three-dimensional candy").
+   .candy themes the whole app; the tile finishes .ts-gummy / .ts-sugar / .ts-hardcandy
+   turn every tile into a sweet. Each tile color is a flavor. */
+
+.tile.c0 { --flav: #ff3b6b; }   /* strawberry */
+.tile.c1 { --flav: #2f7bff; }   /* blueberry */
+.tile.c2 { --flav: #ff9416; }   /* orange */
+.tile.c3 { --flav: #3b2a5c; }   /* licorice */
+.tile.joker { --flav: #a35bff; }
+
+/* ------------------------------------------------------------ app chrome -- */
+.candy {
+  --bg: #fff3f8;
+  --line: #f6d3e3;
+  --accent: #ff2f74;
+  --accent-soft: #ffe0ec;
+  --gold: #ffc21a;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255,170,205,.35) 0 60px, transparent 61px),
+    radial-gradient(circle at 88% 12%, rgba(160,215,255,.35) 0 80px, transparent 81px),
+    radial-gradient(circle at 80% 90%, rgba(255,214,120,.3) 0 70px, transparent 71px),
+    #fff3f8;
+}
+.candy .game { background: transparent; }
+.candy .btn {
+  border-radius: 14px;
+  border: 2px solid #f6d3e3;
+  box-shadow: 0 3px 0 #f0c2d6;
+  font-weight: 800;
+}
+.candy .btn:hover { background: #fff9fc; }
+.candy .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #f0c2d6; }
+.candy .btn.primary {
+  border-color: #e81f63;
+  background: radial-gradient(70% 60% at 30% 20%, rgba(255,255,255,.45), rgba(255,255,255,0) 60%), linear-gradient(180deg, #ff6b9b, #ff2f74);
+  box-shadow: 0 3px 0 #c4144f, inset 0 1px 0 rgba(255,255,255,.5);
+  text-shadow: 0 1px 0 rgba(150,0,50,.35);
+}
+.candy .btn.primary:active { box-shadow: 0 1px 0 #c4144f; }
+.candy .btn[disabled] { box-shadow: none; }
+.candy .chip { border: 2px solid #f6d3e3; box-shadow: 0 2px 0 #f0c2d6; }
+.candy .chip.turn { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,194,26,.35), 0 2px 0 #e9a800; }
+.candy .card { border: 2px solid #f6d3e3; border-radius: 20px; box-shadow: 0 4px 0 #f6d3e3; }
+.candy .logo, .candy .brand h1 {
+  background: linear-gradient(90deg, #ff3b6b, #ff9416 35%, #ffc21a 50%, #2f7bff 75%, #a35bff);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(120,20,70,.25));
+}
+.candy .poolstack { background: linear-gradient(160deg, #ff8fb1, #ff3b6b); box-shadow: 0 2px 0 #c4144f, 0 4px 0 #9e0f3f, 0 6px 6px rgba(0,0,0,.2); border-radius: 7px; }
+
+/* table: a pastel sprinkle surface inside a candy-cane frame */
+.candy .board {
+  border: 8px solid transparent;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255,90,140,.35) 0 2px, transparent 2.5px) 0 0 / 64px 64px padding-box,
+    radial-gradient(circle at 65% 45%, rgba(47,123,255,.3) 0 2px, transparent 2.5px) 0 0 / 64px 64px padding-box,
+    radial-gradient(circle at 40% 80%, rgba(255,160,0,.35) 0 2px, transparent 2.5px) 0 0 / 64px 64px padding-box,
+    radial-gradient(circle at 85% 85%, rgba(160,90,255,.3) 0 2px, transparent 2.5px) 0 0 / 64px 64px padding-box,
+    radial-gradient(120% 90% at 50% 0%, #fffaf3 0%, #e9fbf3 55%, #d6f5ea 100%) padding-box,
+    repeating-linear-gradient(45deg, #ff3b6b 0 12px, #fff 12px 24px) border-box;
+  box-shadow: 0 6px 0 #e9b7cb, 0 14px 28px rgba(200,60,120,.18), inset 0 2px 10px rgba(0,0,0,.06);
+}
+.candy .board.mine::after {
+  inset: 6px; border-radius: 10px;
+  background-image:
+    linear-gradient(to right, rgba(60,140,110,.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(60,140,110,.09) 1px, transparent 1px);
+}
+.candy .seg.ok { box-shadow: 0 0 0 3px rgba(40,200,140,.55); background: rgba(60,220,160,.10); }
+.candy .seg.bad { box-shadow: 0 0 0 3px rgba(255,40,90,.9); background: rgba(255,60,100,.12); }
+.candy .seg.wrap.ok { box-shadow: 0 0 0 3px #ffc21a, 0 0 18px rgba(255,194,26,.6); background: rgba(255,214,90,.16); }
+
+/* rack: a chocolate bar */
+.candy .rack {
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 60% at 30% 0%, rgba(255,255,255,.18), rgba(255,255,255,0) 55%),
+    linear-gradient(180deg, #8a5236 0%, #6e3d26 55%, #55301d 100%);
+  box-shadow: inset 0 2px 0 rgba(255,220,190,.35), inset 0 -5px 0 rgba(0,0,0,.25), 0 6px 0 #3d2213, 0 14px 22px rgba(70,30,10,.3);
+}
+.candy .rack .ledge { background: rgba(0,0,0,.28); box-shadow: 0 1px 0 rgba(255,210,170,.25); height: 3px; }
+
+.candy .starcard { border-radius: 24px; box-shadow: 0 0 0 4px var(--gold), 0 8px 0 #e9a800, 0 24px 50px rgba(0,0,0,.25); }
+.candy .modal { border-radius: 24px; box-shadow: 0 8px 0 #f6d3e3, 0 24px 60px rgba(0,0,0,.25); }
+.candy .toast { border-radius: 16px; background: #3b2a5c; box-shadow: 0 4px 0 #24183a, 0 12px 24px rgba(0,0,0,.25); }
+.candy .toast.warn { background: #ff3b6b; box-shadow: 0 4px 0 #c4144f; }
+
+/* ------------------------------------------------------------- motion -- */
+.tile.boing { animation: boing .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes boing { 0% { scale: 1.18 .86; } 35% { scale: .9 1.12; } 65% { scale: 1.05 .96; } 100% { scale: 1 1; } }
+.candy .tile.fresh { animation: fresh 2.6s ease-out, jiggle .7s ease-in-out 2; }
+@keyframes jiggle { 25% { rotate: -6deg; } 75% { rotate: 6deg; } }
+.candy .tile:not(.locked):hover { translate: 0 -3px; }
+.candy .tile.dragging { translate: 0 0; }
+
+/* ------------------------------------------------- 1 · Gummy (default) -- */
+.ts-gummy .tile {
+  border-radius: calc(var(--tw) * .26);
+  background:
+    radial-gradient(55% 30% at 33% 15%, rgba(255,255,255,.95), rgba(255,255,255,0) 72%),
+    radial-gradient(90% 55% at 50% 108%, color-mix(in srgb, var(--flav) 55%, #fff) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(170deg, color-mix(in srgb, var(--flav) 70%, #fff) 0%, var(--flav) 46%, color-mix(in srgb, var(--flav) 78%, #000) 100%);
+  box-shadow:
+    inset 0 2px 1px rgba(255,255,255,.75),
+    inset 0 calc(var(--tw) * -.08) calc(var(--tw) * .12) color-mix(in srgb, var(--flav) 65%, #000),
+    0 calc(var(--tw) * .05) 0 color-mix(in srgb, var(--flav) 72%, #000),
+    0 calc(var(--tw) * .09) 0 color-mix(in srgb, var(--flav) 55%, #000),
+    0 calc(var(--tw) * .16) calc(var(--tw) * .22) color-mix(in srgb, var(--flav) 40%, transparent);
+}
+.ts-gummy .tile::before { content: none; }
+.ts-gummy .tile::after {
+  /* a small rim light low on the right, like light passing through jelly */
+  background: radial-gradient(22% 12% at 74% 84%, rgba(255,255,255,.55), rgba(255,255,255,0) 100%);
+}
+.ts-gummy .tile .n, .ts-hardcandy .tile .n {
+  background: none;
+  -webkit-text-fill-color: #fff;
+  filter: drop-shadow(0 calc(var(--tw) * .035) 0 color-mix(in srgb, var(--flav) 55%, #000)) drop-shadow(0 calc(var(--tw) * .06) calc(var(--tw) * .05) rgba(0,0,0,.25));
+}
+.ts-gummy .tile.joker, .ts-hardcandy .tile.joker {
+  background:
+    radial-gradient(55% 30% at 33% 15%, rgba(255,255,255,.95), rgba(255,255,255,0) 72%),
+    repeating-conic-gradient(from 10deg at 50% 52%, #ff3b6b 0 30deg, #ffc21a 30deg 60deg, #2f7bff 60deg 90deg, #3ccf91 90deg 120deg);
+}
+.ts-gummy .tile.joker .jk, .ts-hardcandy .tile.joker .jk { width: 70%; filter: drop-shadow(0 2px 0 rgba(80,20,120,.6)) drop-shadow(0 0 3px rgba(255,255,255,.8)); }
+.ts-gummy .tile.joker .jk svg, .ts-hardcandy .tile.joker .jk svg { stroke: #fff; }
+.ts-gummy .tile .st, .ts-hardcandy .tile .st, .ts-sugar .tile .st { color: #fff6b0; text-shadow: 0 0 6px #ffc21a, 0 0 2px #ff9416; }
+
+/* ------------------------------------------------- 2 · Marshmallow (white with candy numbers) -- */
+.ts-sugar .tile {
+  border-radius: calc(var(--tw) * .26);
+  background:
+    radial-gradient(55% 30% at 33% 15%, #fff, rgba(255,255,255,0) 72%),
+    linear-gradient(170deg, #ffffff 0%, #fff4fa 55%, #ffe1ef 100%);
+  box-shadow:
+    inset 0 2px 1px #fff,
+    inset 0 calc(var(--tw) * -.07) calc(var(--tw) * .1) rgba(255,150,195,.35),
+    0 calc(var(--tw) * .05) 0 #ffd3e6,
+    0 calc(var(--tw) * .09) 0 #f4a9c9,
+    0 calc(var(--tw) * .16) calc(var(--tw) * .22) rgba(220,80,140,.28);
+}
+.ts-sugar .tile::before { content: none; }
+.ts-sugar .tile::after { background: radial-gradient(22% 12% at 74% 84%, rgba(255,255,255,.8), rgba(255,255,255,0) 100%); }
+.ts-sugar .tile .n {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--flav) 35%, #fff) 0%, var(--flav) 42%, var(--flav) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 calc(var(--tw) * .03) 0 color-mix(in srgb, var(--flav) 60%, #000)) drop-shadow(0 calc(var(--tw) * .055) calc(var(--tw) * .04) rgba(0,0,0,.2));
+}
+.ts-sugar .tile.joker .jk svg { stroke: url(#crownInk); }
+
+/* ------------------------------------------------- 3 · Hard candy (glassy, see-through) -- */
+.ts-hardcandy .tile {
+  border-radius: calc(var(--tw) * .3);
+  background:
+    radial-gradient(40% 22% at 30% 14%, rgba(255,255,255,1), rgba(255,255,255,0) 80%),
+    radial-gradient(70% 40% at 60% 100%, color-mix(in srgb, var(--flav) 40%, #fff) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(170deg, color-mix(in srgb, var(--flav) 55%, transparent) 0%, color-mix(in srgb, var(--flav) 85%, transparent) 60%, var(--flav) 100%);
+  -webkit-backdrop-filter: blur(4px) saturate(1.6);
+  backdrop-filter: blur(4px) saturate(1.6);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255,255,255,.55),
+    inset 0 2px 2px rgba(255,255,255,.9),
+    inset 0 calc(var(--tw) * -.1) calc(var(--tw) * .16) color-mix(in srgb, var(--flav) 70%, #000),
+    0 calc(var(--tw) * .06) calc(var(--tw) * .05) color-mix(in srgb, var(--flav) 60%, transparent),
+    0 calc(var(--tw) * .18) calc(var(--tw) * .26) color-mix(in srgb, var(--flav) 45%, transparent);
+}
+.ts-hardcandy .tile::before {
+  inset: 10% 12% auto auto; width: 18%; height: 9%; border-radius: 50%;
+  background: rgba(255,255,255,.85); box-shadow: none; transform: rotate(-25deg);
+}
+.ts-hardcandy .tile::after { background: linear-gradient(140deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 30%); }
+
 </style>
 <style>
   :root{
@@ -516,13 +700,13 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   <linearGradient id="crownInk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d42a3b"/><stop offset=".45" stop-color="#e98a00"/><stop offset="1" stop-color="#1d5fd0"/></linearGradient></defs></svg>
 <div class="wrap">
   <header>
-    <h1>Rollover — pick the tile</h1>
-    <p class="sub">You asked for six versions of a beautifully rendered 3D tile. Each one below is drawn live with the game’s own code — this is exactly how it will look on the felt table (big) and on your wooden rack (play size).</p>
+    <h1>Rollover — pick the candy</h1>
+    <p class="sub">You asked for the game to be totally playful, with a lot of three-dimensional candy. The whole game is now candy: a pastel sprinkle table in a candy-cane frame, a chocolate-bar rack, gummy buttons, tiles that bounce when they land. Below are three candy tiles first, then the six classic ones from the first round — each drawn live with the game’s own code, on the table (big) and on your rack (play size). The game already uses Gummy until you pick.</p>
   </header>
 
   <div class="ledger assume">
     <h2>The one rule this rests on — worth a yes or no first</h2>
-    <p><b>Only the finish changes.</b> In every version the four number colors (red, blue, orange, black), the crown joker, the gold ★ on star tiles, and the tile size stay exactly the same — so the game reads the same whichever you pick. None of them copies the trademarked game’s tile (theirs has a smiley joker; ours is a crown).</p>
+    <p><b>Only the tile changes.</b> The table, rack, buttons and animations are candy whichever tile you pick, and the four colors stay red, blue, orange and black (licorice) so the game reads the same. None of them copies the trademarked game’s tile (theirs is ivory with a smiley joker; ours has a crown).</p>
   </div>
 
   <div class="ledger">
@@ -532,33 +716,42 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 
   <h2 class="q">1. Which tile should the game use?</h2>
   <p class="why">Only about the look of the tile itself — not the table, the rack, or the colors of the numbers.</p>
-  <label class="opt"><div class="top"><input type="radio" name="finish" value="1"><span class="nm">1. Ivory</span></div>
-    <p class="rz">Cream tile with a raised rim and a slightly recessed face; numbers look painted into an engraved groove.</p><p class="catch"><b>Catch:</b> The most familiar look — the tile everyone expects, so it surprises least.</p><div class="sample ">
+  <label class="opt"><div class="top"><input type="radio" name="candyFinish" value="1"><span class="nm">1. Gummy</span><span class="badge">recommended</span></div>
+    <p class="rz">Each color is a flavor — strawberry, blueberry, orange, licorice — in glossy jelly with a fat white number. The joker is a lollipop swirl.</p><p class="catch"><b>Catch:</b> The boldest of all: the colors carry the whole tile, so it is loud by design.</p><div class="sample candy ts-gummy">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
-      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="finish" value="2"><span class="nm">2. Porcelain</span><span class="badge">recommended</span></div>
-    <p class="rz">Bright white glazed ceramic with a fine gold hairline and glossy enamel numbers.</p><p class="catch"><b>Catch:</b> The gold hairline is fine detail; on a small phone it is barely visible.</p><div class="sample ts-porcelain">
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="2"><span class="nm">2. Marshmallow</span></div>
+    <p class="rz">Soft white marshmallow tile with glossy candy-colored numbers that stand up off the surface.</p><p class="catch"><b>Catch:</b> Sweeter and calmer than Gummy — the candy is in the numbers, not the whole tile.</p><div class="sample candy ts-sugar">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
-      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="finish" value="3"><span class="nm">3. Two-tone</span></div>
-    <p class="rz">An ivory face on a jade-green back, like a mahjong tile — the thickest, most three-dimensional of the six.</p><p class="catch"><b>Catch:</b> The colored back makes each tile look taller, and jade sits close to the green felt.</p><div class="sample ts-jade">
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="3"><span class="nm">3. Hard candy</span></div>
+    <p class="rz">See-through boiled sweets that glow on the table, with a bright sparkle on each.</p><p class="catch"><b>Catch:</b> The see-through effect is the heaviest for older iPads, and the table tints each tile a little.</p><div class="sample candy ts-hardcandy">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
-      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="finish" value="4"><span class="nm">4. Maple</span></div>
-    <p class="rz">Warm wood grain with numbers carved in, as if cut by hand.</p><p class="catch"><b>Catch:</b> Lowest contrast for the black numbers; reads as cozy rather than crisp.</p><div class="sample ts-wood">
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="4"><span class="nm">4. Ivory</span></div>
+    <p class="rz">Cream tile with a raised rim and a slightly recessed face; numbers look painted into an engraved groove.</p><p class="catch"><b>Catch:</b> The most familiar look — the tile everyone expects, so it surprises least.</p><div class="sample candy ">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
-      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="finish" value="5"><span class="nm">5. Frosted glass</span></div>
-    <p class="rz">Frosted acrylic that lets the table glow through, with softly glowing numbers.</p><p class="catch"><b>Catch:</b> The blur effect is the heaviest for older iPads, and the felt tints every tile.</p><div class="sample ts-glass">
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="5"><span class="nm">5. Porcelain</span></div>
+    <p class="rz">Bright white glazed ceramic with a fine gold hairline and glossy enamel numbers.</p><p class="catch"><b>Catch:</b> The gold hairline is fine detail; on a small phone it is barely visible.</p><div class="sample candy ts-porcelain">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
-      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="finish" value="6"><span class="nm">6. Clay</span></div>
-    <p class="rz">Soft, pillowy, matte — like a studio clay render; numbers stand up in relief.</p><p class="catch"><b>Catch:</b> No rim or edge line, so it looks less like a real game piece and more like an illustration.</p><div class="sample ts-clay">
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="6"><span class="nm">6. Two-tone</span></div>
+    <p class="rz">An ivory face on a jade-green back, like a mahjong tile — the thickest, most three-dimensional of the six.</p><p class="catch"><b>Catch:</b> The colored back makes each tile look taller, and jade sits close to the green felt.</p><div class="sample candy ts-jade">
+      <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="7"><span class="nm">7. Maple</span></div>
+    <p class="rz">Warm wood grain with numbers carved in, as if cut by hand.</p><p class="catch"><b>Catch:</b> Lowest contrast for the black numbers; reads as cozy rather than crisp.</p><div class="sample candy ts-wood">
+      <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="8"><span class="nm">8. Frosted glass</span></div>
+    <p class="rz">Frosted acrylic that lets the table glow through, with softly glowing numbers.</p><p class="catch"><b>Catch:</b> The blur effect is the heaviest for older iPads, and the felt tints every tile.</p><div class="sample candy ts-glass">
+      <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
+      <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label><label class="opt"><div class="top"><input type="radio" name="candyFinish" value="9"><span class="nm">9. Clay</span></div>
+    <p class="rz">Soft, pillowy, matte — like a studio clay render; numbers stand up in relief.</p><p class="catch"><b>Catch:</b> No rim or edge line, so it looks less like a real game piece and more like an illustration.</p><div class="sample candy ts-clay">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:56px;--th:74px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div>
       <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></svg></span></span></div></div></label>
-  <textarea class="note" data-note="finish" placeholder="Anything to add — e.g. “3, but with a blue back”? (optional)" aria-label="Your note on question 1"></textarea>
+  <textarea class="note" data-note="candyFinish" placeholder="Anything to add — e.g. “Gummy, but with sprinkles on the tiles”? (optional)" aria-label="Your note on question 1"></textarea>
 
   <h2 class="q">2. Should each player be able to switch tiles?</h2>
   <p class="why">Only about whether the other five stay available as a choice inside the game.</p>
   <label class="opt"><div class="top"><input type="radio" name="finishSwitch" value="1"><span class="nm">Yes — your pick is the default, and each player can change it on their own screen</span><span class="badge">recommended</span></div>
-    <p class="rz">Mom can choose the one she likes best for her iPad or computer; it doesn’t change what you see.</p><p class="catch"><b>Catch:</b> one more control in the game’s menu.</p></label>
+    <p class="rz">The palette button in the game already does this. Mom can choose the one she likes best for her iPad or computer; it doesn’t change what you see.</p><p class="catch"><b>Catch:</b> one more control in the game’s menu.</p></label>
   <label class="opt"><div class="top"><input type="radio" name="finishSwitch" value="2"><span class="nm">No — one tile for everyone</span></div>
-    <p class="rz">The game always uses your pick; the other five are removed.</p><p class="catch"><b>Catch:</b> if Mom finds your pick hard to read, she cannot change it.</p></label>
+    <p class="rz">The game always uses your pick; the palette button and the other tiles are removed.</p><p class="catch"><b>Catch:</b> if Mom finds your pick hard to read, she cannot change it.</p></label>
   <textarea class="note" data-note="finishSwitch" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 2"></textarea>
 
   <h2 class="q notes">Anything else?</h2>
@@ -580,7 +773,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   /* ⚠️ the values are positions: reordering or inserting an option after
      publishing changes what a saved answer means — change the question's
      name instead */
-  const QS = ['finish', 'finishSwitch'];   /* one name per question — a NAME, never a position */
+  const QS = ['candyFinish', 'finishSwitch'];   /* one name per question — a NAME, never a position */
   const KEY = 'rollover-tiles-picks';
   const DOC = 'picks/rollover-tiles';
   let db = null;

@@ -12,7 +12,10 @@ or against computer players. Built 2026-09-30.
 - **Twist:** four ★ star tiles; laying one from your rack fires a surprise (Burden: next player
   draws; Peek: you see the next player's rack; Spotlight: next player's rack face-up for everyone).
   Switch in setup.
-- Her note: tiles must look like **beautiful 3D renders** (done in CSS, see `src/ui/tiles.css`).
+- Her note: tiles must look like **beautiful 3D renders**. Then (2026-09-30): **"totally playful, a lot of
+  three-dimensional candy … exciting and desirable to play."** So the whole app is candy: `src/ui/candy.css`
+  (`.candy` on body: sprinkle table + candy-cane frame, chocolate rack, gummy buttons, bounce/jiggle) and
+  candy tile finishes (Gummy = default, Marshmallow, Hard candy); classic finishes stay in the palette.
 
 ## Name and trademark (Stefanie, 2026-09-30)
 The game is **Rollover** — "a tile rummy game". Tile rummy is a generic, decades-old game;
@@ -36,8 +39,9 @@ declared control height token `--control-h`.
 - Live: https://herzer.github.io/rollover/ (repo `herzer/rollover`, public; push to `main` deploys).
 - Done: engine + tests, 3 AI levels (worker), online play, reload recovery, EN/DE, star tiles,
   six tile finishes (`src/ui/tile-styles.css`, per-player palette button), dev panel ⌘⇧D (dev only).
-- Waiting on: tile pick — https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z (`picks/rollover-tiles`);
-  then set `DEFAULT_FINISH` in `src/ui/game.ts` (and drop the switcher if she answers "one tile").
+- Waiting on: tile pick — https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z (`picks/rollover-tiles`,
+  question `candyFinish`, options in the generator's order); then set `DEFAULT_FINISH` in `src/ui/game.ts`
+  (and drop the palette switcher if she answers `finishSwitch: 2`).
   The picker page is generated: `python3 scripts/build-tile-picker.py`.
 - Strict networks: if the direct link will not open, guests fall back to a public MQTT relay (`src/net/relay.ts`, HiveMQ then EMQX). Force it with `?relay` to test.
 

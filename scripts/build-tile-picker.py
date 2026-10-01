@@ -3,12 +3,12 @@
 import re, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 tmpl = (pathlib.Path.home() / '.claude/templates/proposal-picker/template.html').read_text()
-game_css = (root / 'src/ui/styles.css').read_text() + '\n' + (root / 'src/ui/tile-styles.css').read_text()
+game_css = (root / 'src/ui/styles.css').read_text() + '\n' + (root / 'src/ui/tile-styles.css').read_text() + '\n' + (root / 'src/ui/candy.css').read_text()
 game_css = game_css.replace('overflow: hidden;\n}', 'overflow: auto;\n}', 1)
 
 picker_style = tmpl[tmpl.index('<style>') + 7: tmpl.index('</style>')]
 script = tmpl[tmpl.index('<div class="fallback"'):]
-script = script.replace("const QS = ['first', 'second'];", "const QS = ['finish', 'finishSwitch'];")
+script = script.replace("const QS = ['first', 'second'];", "const QS = ['candyFinish', 'finishSwitch'];")
 script = script.replace("'SLUG-picks'", "'rollover-tiles-picks'").replace("'picks/SLUG'", "'picks/rollover-tiles'")
 script = script.replace('0 of 2 answered', '0 of 2 answered')
 
@@ -25,13 +25,16 @@ def tiles(tw):
     return ''.join(out)
 
 def sample(cls):
-    return f'''<div class="sample {cls}">
+    return f'''<div class="sample candy {cls}">
       <div class="board" style="width:auto;height:auto;padding:22px 20px 30px;display:flex;gap:7px;flex-wrap:wrap">{tiles(56)}</div>
       <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap">{tiles(40)}</div></div>'''
 
 FINISHES = [
+    ('ts-gummy', 'Gummy', 'Each color is a flavor — strawberry, blueberry, orange, licorice — in glossy jelly with a fat white number. The joker is a lollipop swirl.', 'The boldest of all: the colors carry the whole tile, so it is loud by design.', True),
+    ('ts-sugar', 'Marshmallow', 'Soft white marshmallow tile with glossy candy-colored numbers that stand up off the surface.', 'Sweeter and calmer than Gummy — the candy is in the numbers, not the whole tile.', False),
+    ('ts-hardcandy', 'Hard candy', 'See-through boiled sweets that glow on the table, with a bright sparkle on each.', 'The see-through effect is the heaviest for older iPads, and the table tints each tile a little.', False),
     ('', 'Ivory', 'Cream tile with a raised rim and a slightly recessed face; numbers look painted into an engraved groove.', 'The most familiar look — the tile everyone expects, so it surprises least.', False),
-    ('ts-porcelain', 'Porcelain', 'Bright white glazed ceramic with a fine gold hairline and glossy enamel numbers.', 'The gold hairline is fine detail; on a small phone it is barely visible.', True),
+    ('ts-porcelain', 'Porcelain', 'Bright white glazed ceramic with a fine gold hairline and glossy enamel numbers.', 'The gold hairline is fine detail; on a small phone it is barely visible.', False),
     ('ts-jade', 'Two-tone', 'An ivory face on a jade-green back, like a mahjong tile — the thickest, most three-dimensional of the six.', 'The colored back makes each tile look taller, and jade sits close to the green felt.', False),
     ('ts-wood', 'Maple', 'Warm wood grain with numbers carved in, as if cut by hand.', 'Lowest contrast for the black numbers; reads as cozy rather than crisp.', False),
     ('ts-glass', 'Frosted glass', 'Frosted acrylic that lets the table glow through, with softly glowing numbers.', 'The blur effect is the heaviest for older iPads, and the felt tints every tile.', False),
@@ -41,18 +44,18 @@ FINISHES = [
 opts = []
 for i, (cls, name, what, catch, rec) in enumerate(FINISHES, 1):
     badge = '<span class="badge">recommended</span>' if rec else ''
-    opts.append(f'''<label class="opt"><div class="top"><input type="radio" name="finish" value="{i}"><span class="nm">{i}. {name}</span>{badge}</div>
+    opts.append(f'''<label class="opt"><div class="top"><input type="radio" name="candyFinish" value="{i}"><span class="nm">{i}. {name}</span>{badge}</div>
     <p class="rz">{what}</p><p class="catch"><b>Catch:</b> {catch}</p>{sample(cls)}</label>''')
 
 body = f'''<div class="wrap">
   <header>
-    <h1>Rollover — pick the tile</h1>
-    <p class="sub">You asked for six versions of a beautifully rendered 3D tile. Each one below is drawn live with the game’s own code — this is exactly how it will look on the felt table (big) and on your wooden rack (play size).</p>
+    <h1>Rollover — pick the candy</h1>
+    <p class="sub">You asked for the game to be totally playful, with a lot of three-dimensional candy. The whole game is now candy: a pastel sprinkle table in a candy-cane frame, a chocolate-bar rack, gummy buttons, tiles that bounce when they land. Below are three candy tiles first, then the six classic ones from the first round — each drawn live with the game’s own code, on the table (big) and on your rack (play size). The game already uses Gummy until you pick.</p>
   </header>
 
   <div class="ledger assume">
     <h2>The one rule this rests on — worth a yes or no first</h2>
-    <p><b>Only the finish changes.</b> In every version the four number colors (red, blue, orange, black), the crown joker, the gold ★ on star tiles, and the tile size stay exactly the same — so the game reads the same whichever you pick. None of them copies the trademarked game’s tile (theirs has a smiley joker; ours is a crown).</p>
+    <p><b>Only the tile changes.</b> The table, rack, buttons and animations are candy whichever tile you pick, and the four colors stay red, blue, orange and black (licorice) so the game reads the same. None of them copies the trademarked game’s tile (theirs is ivory with a smiley joker; ours has a crown).</p>
   </div>
 
   <div class="ledger">
@@ -63,14 +66,14 @@ body = f'''<div class="wrap">
   <h2 class="q">1. Which tile should the game use?</h2>
   <p class="why">Only about the look of the tile itself — not the table, the rack, or the colors of the numbers.</p>
   {''.join(opts)}
-  <textarea class="note" data-note="finish" placeholder="Anything to add — e.g. “3, but with a blue back”? (optional)" aria-label="Your note on question 1"></textarea>
+  <textarea class="note" data-note="candyFinish" placeholder="Anything to add — e.g. “Gummy, but with sprinkles on the tiles”? (optional)" aria-label="Your note on question 1"></textarea>
 
   <h2 class="q">2. Should each player be able to switch tiles?</h2>
   <p class="why">Only about whether the other five stay available as a choice inside the game.</p>
   <label class="opt"><div class="top"><input type="radio" name="finishSwitch" value="1"><span class="nm">Yes — your pick is the default, and each player can change it on their own screen</span><span class="badge">recommended</span></div>
-    <p class="rz">Mom can choose the one she likes best for her iPad or computer; it doesn’t change what you see.</p><p class="catch"><b>Catch:</b> one more control in the game’s menu.</p></label>
+    <p class="rz">The palette button in the game already does this. Mom can choose the one she likes best for her iPad or computer; it doesn’t change what you see.</p><p class="catch"><b>Catch:</b> one more control in the game’s menu.</p></label>
   <label class="opt"><div class="top"><input type="radio" name="finishSwitch" value="2"><span class="nm">No — one tile for everyone</span></div>
-    <p class="rz">The game always uses your pick; the other five are removed.</p><p class="catch"><b>Catch:</b> if Mom finds your pick hard to read, she cannot change it.</p></label>
+    <p class="rz">The game always uses your pick; the palette button and the other tiles are removed.</p><p class="catch"><b>Catch:</b> if Mom finds your pick hard to read, she cannot change it.</p></label>
   <textarea class="note" data-note="finishSwitch" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 2"></textarea>
 
   <h2 class="q notes">Anything else?</h2>
