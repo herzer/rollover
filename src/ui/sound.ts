@@ -64,4 +64,5 @@ export const sfx = {
   star: () => [1319, 1568, 2093, 2637].forEach((f, i) => tone(f, 0.3, 'sine', 0.07, i * 0.06)),
   win: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.28, 'triangle', 0.11, i * 0.13)),
   react: () => tone(990, 0.1, 'sine', 0.06),
+  meld: () => { tone(784, 0.12, 'sine', 0.08); tone(1175, 0.22, 'sine', 0.08, 0.08); },
 };

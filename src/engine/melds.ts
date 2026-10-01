@@ -83,3 +83,15 @@ export function evalMeld(tiles: Tile[], rules: Pick<Rules, 'rollover'>): MeldEva
   if (g && r) return g.value >= r.value ? g : r;
   return g ?? r ?? BAD(tiles);
 }
+
+export type MeldProblem = 'short' | 'long' | 'mixed' | 'repeat-color' | 'gap';
+
+/** Why a meld is not valid, in words a player can act on (null when it is valid). */
+export function meldProblem(tiles: Tile[], rules: Pick<Rules, 'rollover'>): MeldProblem | null {
+  if (evalMeld(tiles, rules).ok) return null;
+  if (tiles.length < 3) return 'short';
+  const real = tiles.filter((t) => !t.joker);
+  if (real.every((t) => t.num === real[0].num)) return tiles.length > 4 ? 'long' : 'repeat-color';
+  if (real.every((t) => t.color === real[0].color)) return tiles.length > 13 ? 'long' : 'gap';
+  return 'mixed';
+}

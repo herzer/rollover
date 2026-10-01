@@ -2,7 +2,8 @@
 // above both — so a tile glides from the rack to the table instead of jumping.
 
 import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, segments, type Placed } from '../engine/board';
-import { chooseMove, type Move } from '../engine/ai';
+import { meldProblem } from '../engine/melds';
+import { chooseMove, rackMelds, type Move } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
 import type { Tile } from '../engine/tiles';
 import type { Client, ClientEvent } from '../net/client';
@@ -45,6 +46,8 @@ interface Drag {
   grabX: number; grabY: number;
   w: number; h: number;
   group: number[];
+  /** Set when a whole meld was picked up by its handle. */
+  forced?: boolean;
   active: boolean;
 }
 
@@ -66,6 +69,10 @@ export class GameView {
   private draftKey = '';
   /** The state seq a commit or draw was sent for; buttons wait until the answer arrives. */
   private sentSeq = -1;
+  /** Melds that were already valid, so a newly valid one can light up once. */
+  private validKeys = new Set<string>();
+  private pendingSort = false;
+  private prevRack: Set<number> | null = null;
   private rackPos = new Map<number, { r: number; c: number }>();
   private selected = new Set<number>();
   private hint: Move | null = null;
@@ -171,6 +178,7 @@ export class GameView {
       <div class="reveals" data-ref="reveals"></div>
       <div class="rackwrap"><div class="rack" data-ref="rack"></div></div>
       <div class="actions" data-ref="actions">
+        <button class="btn" data-act="sortMelds" title="${esc(t().sortMeldsTip)}">${icon('sparkles')}${t().sortMelds}</button>
         <button class="btn" data-act="sortRuns" title="${esc(t().sortRunsTip)}">${icon('sortNum')}${t().sortRuns}</button>
         <button class="btn" data-act="sortGroups" title="${esc(t().sortGroupsTip)}">${icon('sortGroup')}${t().sortGroups}</button>
         <span class="spacer"></span>
@@ -192,6 +200,7 @@ export class GameView {
       if (b && !(b as HTMLButtonElement).disabled) this.act(b.dataset.act!, b);
     });
     this.layer.addEventListener('pointerdown', this.onDown);
+    this.boardEl.addEventListener('pointerdown', this.onGripDown);
     this.tileEls.clear();
     requestAnimationFrame(() => { this.measure(); this.render(); });
   }
@@ -316,6 +325,8 @@ export class GameView {
       this.prevBoard = new Set(s.board.map((p) => p.id));
       this.rackPos.clear();
       this.loadRack();
+      if (this.rackPos.size === 0) this.pendingSort = true; // a fresh deal arrives sorted
+      this.prevRack = null;
       this.selected.clear();
       this.closeModal();
     }
@@ -323,7 +334,7 @@ export class GameView {
     const key = `${s.round}:${s.turnNo}`;
     const mineInState = s.phase === 'playing' && s.turn === this.seat;
     if (mineInState) {
-      if (this.draftKey !== key || !this.draft) { this.draft = s.board.map((p) => ({ ...p })); this.hint = null; }
+      if (this.draftKey !== key || !this.draft) { this.draft = s.board.map((p) => ({ ...p })); this.hint = null; this.validKeys.clear(); }
     } else { this.draft = null; this.hint = null; }
     this.draftKey = key;
     if (s.seq !== this.sentSeq) this.sentSeq = -1;
@@ -333,11 +344,20 @@ export class GameView {
     this.prevBoard = new Set(s.board.map((p) => p.id));
     for (let i = Math.max(0, this.logSeen); i < s.log.length; i++) this.happened(s.log[i], s);
     this.logSeen = s.log.length;
-    if (this.myTurn && !this.wasMyTurn) { sfx.myTurn(); if (document.hidden) document.title = `● ${t().titleTurn} — ${t().appName}`; }
+    const rackNow = new Set(this.myRack);
+    const drawn = this.prevRack ? [...rackNow].filter((id) => !this.prevRack!.has(id)) : [];
+    this.prevRack = rackNow;
+    if (this.myTurn && !this.wasMyTurn) { this.maybeCoach(); sfx.myTurn(); if (document.hidden) document.title = `● ${t().titleTurn} — ${t().appName}`; }
     if (!this.myTurn) document.title = `${t().appName} — a tile rummy game`;
     this.wasMyTurn = this.myTurn;
 
     this.render();
+    for (const id of drawn) {
+      const el = this.tileEls.get(id);
+      if (!el) continue;
+      el.classList.add('drawn');
+      setTimeout(() => el.classList.remove('drawn'), 4000);
+    }
     for (const id of fresh) {
       const el = this.tileEls.get(id);
       if (!el) continue;
@@ -373,6 +393,7 @@ export class GameView {
     const s = this.s;
     if (!s || !this.el.isConnected) return;
     this.syncRack();
+    if (this.pendingSort && this.myRack.length) { this.pendingSort = false; this.arrangeRack('melds'); }
     this.measure();
     const board = this.displayBoard();
     const mine = this.myTurn;
@@ -383,12 +404,29 @@ export class GameView {
     // segment outlines while a turn is being built (mine, or the one I'm watching)
     const watching = board !== s.board;
     const check = checkBoard(board, s.tiles, s.rules);
-    this.boardEl.innerHTML = watching || mine ? check.segs.map((g) => {
+    const startIds = new Set(s.board.map((p) => p.id));
+    let lit = false;
+    this.boardEl.innerHTML = watching || mine ? check.segs.map((g, i) => {
       const xy = this.cellXY('board', g.r, g.c);
       const o = this.origin('board');
       const x = xy.x - (o.box.left - o.host.left) - this.boardEl.clientLeft - 3, y = xy.y - (o.box.top - o.host.top) - this.boardEl.clientTop - 3;
-      return `<div class="seg ${g.eval.ok ? 'ok' : 'bad'}${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.tw + this.gap) - this.gap + 6}px;height:${this.th + 6}px"></div>`;
+      // a meld that just became valid with one of my tiles in it lights up once
+      const key = [...g.ids].sort((a, b) => a - b).join(',');
+      let pulse = '';
+      if (mine && g.eval.ok && g.ids.some((id) => !startIds.has(id)) && !this.validKeys.has(key)) { this.validKeys.add(key); pulse = ' pulse'; lit = true; }
+      const why = mine && !g.eval.ok ? meldProblem(g.ids.map((id) => s.tiles[id]), s.rules) : null;
+      const grip = mine && !this.drag?.active ? `<div class="grip" data-seg="${i}" title="${esc(t().gripTip)}" style="left:${x - 13}px;top:${y + 3}px;height:${this.th}px"></div>` : '';
+      return `<div class="seg ${g.eval.ok ? 'ok' : 'bad'}${g.eval.wraps ? ' wrap' : ''}${pulse}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.tw + this.gap) - this.gap + 6}px;height:${this.th + 6}px">${why ? `<span class="why">${esc(t().problem[why])}</span>` : ''}</div>${grip}`;
     }).join('') : '';
+    if (lit) sfx.meld();
+    // runs and groups sitting together on the rack glow, so you can see what you could lay
+    const rackSegs = checkBoard([...this.rackPos].filter(([id]) => this.rackIds().includes(id)).map(([id, p]) => ({ id, r: p.r, c: p.c })), s.tiles, s.rules).segs;
+    const ro = this.origin('rack');
+    this.rackEl.innerHTML += rackSegs.filter((g) => g.eval.ok).map((g) => {
+      const xy = this.cellXY('rack', g.r, g.c);
+      const x = xy.x - (ro.box.left - ro.host.left) - this.rackEl.clientLeft - 3, y = xy.y - (ro.box.top - ro.host.top) - this.rackEl.clientTop - 3;
+      return `<div class="seg ok rackseg${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.rtw + this.gap) - this.gap + 6}px;height:${this.rth + 6}px"><span class="tag">${g.eval.kind === 'group' ? esc(t().kindGroup) : esc(t().kindRun)} · ${g.eval.value}</span></div>`;
+    }).join('');
 
     // tiles
     const want = new Map<number, { x: number; y: number; area: Area }>();
@@ -442,6 +480,10 @@ export class GameView {
 
   private renderChrome(s: GameState, board: Placed[], valid: boolean) {
     const tt = t();
+    const startIds = new Set(s.board.map((p) => p.id));
+    const openingValue = checkBoard(board, s.tiles, s.rules).segs
+      .filter((g) => g.ids.every((id) => !startIds.has(id)) && g.eval.ok)
+      .reduce((a, g) => a + g.eval.value, 0);
     const lobby = this.client.lobby;
     const players = this.el.querySelector('[data-ref="players"]')!;
     players.innerHTML = s.players.map((p, i) => {
@@ -464,13 +506,11 @@ export class GameView {
     else if (this.myTurn) {
       html = esc(tt.yourTurn);
       const me = s.players[this.seat];
-      if (!me.opened) {
-        const before = new Set(s.board.map((p) => p.id));
-        const v = checkBoard(board, s.tiles, s.rules).segs
-          .filter((g) => g.ids.every((id) => !before.has(id)) && g.eval.ok)
-          .reduce((a, g) => a + g.eval.value, 0);
-        html += `<span class="sub${v >= s.rules.openingMin ? ' ok' : ''}">${esc(tt.openHint(v, s.rules.openingMin))}</span>`;
-      }
+      const laid = board.filter((p) => !startIds.has(p.id)).length;
+      if (laid && !valid) html += `<span class="sub bad">${esc(tt.fixRed)}</span>`;
+      else if (!me.opened && openingValue < s.rules.openingMin) html += `<span class="sub">${esc(tt.openHint(openingValue, s.rules.openingMin))}</span>`;
+      else if (laid) html += `<span class="sub ok">${esc(tt.readyDone)}</span>`;
+      else if (!me.opened) html += `<span class="sub">${esc(tt.openHint(0, s.rules.openingMin))}</span>`;
     } else if (this.client.host?.isWaitingOn()) {
       html = `<span style="color:var(--warn)">${esc(tt.offlineWait(cur.name))}</span> <button class="btn sm" data-act="playFor" title="${esc(tt.playForTip)}">${icon('bot', 15)}${esc(tt.playFor(cur.name))}</button>`;
     } else html = esc(cur.kind === 'ai' ? tt.thinking(cur.name) : tt.theirTurn(cur.name));
@@ -487,13 +527,17 @@ export class GameView {
 
     // buttons
     const btn = (a: string) => this.el.querySelector(`[data-act="${a}"]`) as HTMLButtonElement;
-    const changed = this.myTurn && board.length !== s.board.length;
+    // one obvious next step: Draw while nothing is laid, Done once something is
+    const laid = this.myTurn ? board.filter((p) => !startIds.has(p.id)).length : 0;
+    const me = s.players[this.seat];
+    const ready = laid > 0 && valid && (me?.opened || openingValue >= s.rules.openingMin);
     btn('undo').disabled = !this.myTurn || !this.draftDiffers();
     btn('hint').disabled = !this.myTurn;
     const waiting = this.sentSeq === s.seq;
     btn('draw').disabled = !this.myTurn || waiting;
-    btn('done').disabled = !this.myTurn || !changed || waiting;
-    btn('done').classList.toggle('ready', changed && valid);
+    btn('draw').classList.toggle('primary', laid === 0);
+    btn('done').hidden = laid === 0;
+    btn('done').disabled = !this.myTurn || !ready || waiting;
     const drawLabel = this.el.querySelector('[data-ref="drawLabel"]') as HTMLElement;
     drawLabel.textContent = s.pool.length ? tt.draw : tt.pass;
     btn('draw').title = s.pool.length ? tt.drawTip : tt.passTip;
@@ -520,6 +564,7 @@ export class GameView {
       case 'tiles': this.finishPicker(b); return;
       case 'playFor': { const id = s?.players[s.turn].id; if (id) this.client.host?.playFor(id); return; }
       case 'sortRuns': this.sortRack('runs'); return;
+      case 'sortMelds': this.sortRack('melds'); return;
       case 'sortGroups': this.sortRack('groups'); return;
       case 'next': this.client.host?.nextRound(); return;
       case 'closeModal': this.closeModal(); return;
@@ -558,9 +603,16 @@ export class GameView {
     }
   }
 
-  private sortRack(mode: 'runs' | 'groups') {
+  private sortRack(mode: 'runs' | 'groups' | 'melds') {
+    this.arrangeRack(mode);
+    sfx.pick();
+    this.render();
+  }
+
+  private arrangeRack(mode: 'runs' | 'groups' | 'melds') {
     const s = this.s;
     if (!s) return;
+    if (mode === 'melds') { this.arrangeMelds(); return; }
     const ids = this.rackIds().map((id) => s.tiles[id]);
     const key = (x: Tile) => (x.joker ? 1000 : mode === 'runs' ? x.color * 20 + x.num : x.num * 10 + x.color);
     ids.sort((a, b) => key(a) - key(b) || a.id - b.id);
@@ -578,8 +630,30 @@ export class GameView {
       prev = bucket(x);
     }
     this.saveRack();
-    sfx.pick();
-    this.render();
+  }
+
+  /** Every run and group the rack can make, each kept together, then the leftovers in color order. */
+  private arrangeMelds() {
+    const s = this.s!;
+    const onTable = new Set(this.displayBoard().map((p) => p.id));
+    const { melds, rest } = rackMelds(s, this.seat);
+    const lines = melds.map((m) => m.filter((id) => !onTable.has(id))).filter((m) => m.length);
+    const left = rest.filter((id) => !onTable.has(id)).sort((a, b) => {
+      const x = s.tiles[a], y = s.tiles[b];
+      return (x.joker ? 99 : x.color * 20 + x.num) - (y.joker ? 99 : y.color * 20 + y.num);
+    });
+    this.rackPos.clear();
+    let r = 0, c = 0;
+    const put = (ids: number[], gapAfter: boolean) => {
+      if (c > 0 && c + ids.length > this.rackCols) { r++; c = 0; }
+      ids.forEach((id) => { if (c >= this.rackCols) { r++; c = 0; } this.rackPos.set(id, { r, c: c++ }); });
+      if (gapAfter) c++;
+    };
+    for (const m of lines) put(m, true);
+    if (lines.length && left.length && c > 0) { r++; c = 0; } // leftovers start on their own row
+    put(left, false);
+    this.rackRows = Math.max(this.rackRows, r + 1);
+    this.saveRack();
   }
 
   private sendDraft() {
@@ -604,14 +678,30 @@ export class GameView {
     e.preventDefault();
   };
 
+  /** The handle on the left of a meld picks up the whole meld. */
+  private onGripDown = (e: PointerEvent) => {
+    const grip = (e.target as HTMLElement).closest('.grip') as HTMLElement | null;
+    if (!grip || this.drag || !this.myTurn) return;
+    const seg = checkBoard(this.displayBoard(), this.s!.tiles, this.s!.rules).segs[Number(grip.dataset.seg)];
+    if (!seg) return;
+    const first = this.tileEls.get(seg.ids[0]);
+    if (!first) return;
+    const r = first.getBoundingClientRect();
+    this.selected = new Set(seg.ids);
+    this.drag = { id: seg.ids[0], pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, grabX: e.clientX - r.left, grabY: e.clientY - r.top, w: r.width, h: r.height, group: seg.ids, active: false, forced: true };
+    e.preventDefault();
+  };
+
   private onMove = (e: PointerEvent) => {
     const d = this.drag;
     if (!d || e.pointerId !== d.pointerId) return;
     if (!d.active) {
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6) return;
       d.active = true;
-      d.group = this.selected.has(d.id) ? this.orderedSelection() : [d.id];
-      if (!d.group.includes(d.id)) d.group = [d.id];
+      if (!d.forced) {
+        d.group = this.selected.has(d.id) ? this.orderedSelection() : [d.id];
+        if (!d.group.includes(d.id)) d.group = [d.id];
+      }
       for (const id of d.group) this.tileEls.get(id)?.classList.add('dragging');
       sfx.pick();
     }
@@ -630,7 +720,7 @@ export class GameView {
     const d = this.drag;
     if (!d || e.pointerId !== d.pointerId) return;
     this.drag = null;
-    if (!d.active) { this.tapped(d.id); return; }
+    if (!d.active) { if (d.forced) this.render(); else this.tapped(d.id); return; }
     for (const id of d.group) this.tileEls.get(id)?.classList.remove('dragging');
     const idx = d.group.indexOf(d.id);
     // where the first tile of the line lands
@@ -847,6 +937,20 @@ export class GameView {
     });
     this.el.appendChild(pop);
     setTimeout(() => document.addEventListener('pointerdown', (ev) => { if (!pop.contains(ev.target as Node)) pop.remove(); }, { once: true }), 0);
+  }
+
+  private maybeCoach() {
+    try { if (localStorage.getItem('rollover.coached')) return; localStorage.setItem('rollover.coached', '1'); } catch { return; }
+    const c = t().coach;
+    this.closeModal();
+    const back = document.createElement('div');
+    back.className = 'modal-back';
+    back.innerHTML = `<div class="modal coach"><h2>${esc(c.title)}</h2>
+      <ol>${c.steps.map(([h, b]) => `<li><b>${esc(h)}</b><span>${esc(b)}</span></li>`).join('')}</ol>
+      <p class="msg">${esc(c.tip)}</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="closeModal" title="${esc(c.go)}">${icon('play')}${esc(c.go)}</button></div></div>`;
+    this.el.appendChild(back);
+    this.modalOpen = 'help';
   }
 
   private closeModal() { this.el.querySelector('.modal-back')?.remove(); this.modalOpen = null; }

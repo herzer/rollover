@@ -233,3 +233,17 @@ export function chooseMove(state: GameState, seat: number, level: 1 | 2 | 3 = 3,
   }
   return simple;
 }
+
+/** The best melds hiding in a rack (ignoring the table and the opening rule), plus what is left. */
+export function rackMelds(state: GameState, seat: number, budget = 60000): { melds: number[][]; rest: number[] } {
+  const rack = state.players[seat].rack.filter((id) => id >= 0);
+  const { avail, jokers } = counts(rack, state.tiles);
+  let melds: number[][] = [];
+  try {
+    melds = materialize(new Solver(state.rules.rollover, budget).optional(avail, jokers, 0).melds, [], rack, state.tiles, state.rules);
+  } catch (e) {
+    if (!(e instanceof OutOfBudget)) throw e;
+  }
+  const used = new Set(melds.flat());
+  return { melds, rest: rack.filter((id) => !used.has(id)) };
+}

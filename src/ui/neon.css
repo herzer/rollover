@@ -172,3 +172,15 @@ body.neon #app { position: relative; z-index: 1; }
   filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 -1px 0 rgba(0,0,0,.3));
 }
 .ts-chrome .tile.joker .jk svg { stroke: #2a3040; }
+
+.neon .seg .why { background: rgba(20,6,12,.95); color: #ff8fb0; border: 1px solid var(--n-red); font-family: "Chakra Petch", sans-serif; letter-spacing: .03em; box-shadow: 0 0 12px rgba(255,42,109,.4); }
+.neon .seg.pulse { animation: neonpulse .9s ease-out; }
+@keyframes neonpulse { 0% { box-shadow: 0 0 0 1px #fff, 0 0 30px 6px rgba(34,228,255,.9); } 100% { box-shadow: 0 0 0 1px rgba(34,228,255,.8), 0 0 12px rgba(34,228,255,.35); } }
+.neon .grip { background: repeating-linear-gradient(180deg, rgba(34,228,255,.9) 0 2px, transparent 2px 5px); filter: drop-shadow(0 0 3px #22e4ff); }
+.neon .rack .seg.rackseg { box-shadow: 0 0 0 1px rgba(34,228,255,.7), 0 0 14px rgba(34,228,255,.3); background: rgba(34,228,255,.05); border-radius: 5px; }
+.neon .rack .seg .tag { background: #22e4ff; color: #031016; font-family: "Chakra Petch", sans-serif; }
+.neon .tile:not(.locked):hover { filter: brightness(1.25); }
+.neon .tile.drawn { box-shadow: 0 0 0 1px #ffb020, 0 0 24px 6px rgba(255,176,32,.6) !important; }
+.neon .modal.coach li span { color: var(--soft); }
+.neon .rack .seg.rackseg.wrap { box-shadow: 0 0 0 1px var(--n-amber), 0 0 16px rgba(255,176,32,.45); }
+.neon .rack .seg.rackseg.wrap .tag { background: var(--n-amber); }
