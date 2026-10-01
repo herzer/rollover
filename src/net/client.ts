@@ -5,6 +5,8 @@ import Peer, { type DataConnection } from 'peerjs';
 import type { GameState } from '../engine/game';
 import type { Placed } from '../engine/board';
 import { Host } from './host';
+import type { MqttClient } from 'mqtt';
+import { connectRelay, decode, downTopic, encode, upTopic } from './relay';
 import type { Lobby, ToClient, ToHost } from './protocol';
 
 const PREFIX = 'rollover-tiles-v1-';
@@ -53,6 +55,14 @@ export class Client {
   private listeners = new Set<(e: ClientEvent) => void>();
   private disposed = false;
   private retry: ReturnType<typeof setTimeout> | null = null;
+  // relay fallback (see relay.ts)
+  private relay: MqttClient | null = null;
+  private relayTimer: ReturnType<typeof setInterval> | null = null;
+  private relaySeen = new Map<string, number>();
+  private lastHeard = 0;
+  private openFails = 0;
+  /** True when this guest talks to the host through the relay. */
+  viaRelay = false;
 
   constructor(public clientId: string, public name: string, public code: string | null) {}
 
@@ -63,6 +73,7 @@ export class Client {
 
   send(msg: ToHost) {
     if (this.host) { const h = this.host; queueMicrotask(() => h.receive(this.clientId, msg)); return; }
+    if (this.viaRelay && this.relay && this.code) { this.relay.publish(upTopic(this.code), encode({ from: this.clientId, msg })); return; }
     if (this.conn?.open) this.conn.send(msg);
   }
 
@@ -81,6 +92,7 @@ export class Client {
       case 'react': this.emit({ t: 'react', seat: msg.seat, emoji: msg.emoji }); break;
       case 'error': this.emit({ t: 'error', error: msg.error }); break;
       case 'full': this.status = 'full'; this.emit({ t: 'update' }); break;
+      case 'pong': break;
     }
   }
 
@@ -95,7 +107,7 @@ export class Client {
     c.status = 'ok';
     c.send({ t: 'hello', clientId: id, name });
     if (saved) c.host.kick();
-    if (c.code) c.openHostPeer(0);
+    if (c.code) { c.openHostPeer(0); c.openHostRelay(); }
     return c;
   }
 
@@ -127,11 +139,38 @@ export class Client {
     });
   }
 
+  /** The host also listens on the relay, for guests whose network blocks a direct link. */
+  private openHostRelay() {
+    const host = this.host!, code = this.code!;
+    connectRelay((c) => {
+      if (this.disposed) { c.end(true); return; }
+      this.relay = c;
+      c.subscribe(upTopic(code));
+      c.on('message', (_topic, payload) => {
+        const m = decode<{ from: string; msg: ToHost | { t: 'ping' } }>(payload);
+        if (!m || typeof m.from !== 'string' || !m.msg) return;
+        const known = this.relaySeen.has(m.from);
+        this.relaySeen.set(m.from, Date.now());
+        const reply = (out: ToClient) => c.publish(downTopic(code, m.from), encode(out));
+        if (!known || m.msg.t === 'hello') host.attach(m.from, reply);
+        if (m.msg.t === 'ping') {
+          reply({ t: 'pong' });
+          if (!known) host.receive(m.from, { t: 'hello', clientId: m.from, name: '' });
+          return;
+        }
+        host.receive(m.from, m.msg);
+      });
+    });
+    this.relayTimer = setInterval(() => {
+      for (const [id, at] of this.relaySeen) if (Date.now() - at > 30000) { this.relaySeen.delete(id); host.detach(id); }
+    }, 10000);
+  }
+
   // ---- as guest ------------------------------------------------------------
 
   static join(code: string, name: string, fresh = false): Client {
     const c = new Client(deviceId(code, fresh), name, code);
-    c.connectGuest();
+    if (new URLSearchParams(location.search).has('relay')) c.useRelay(); else c.connectGuest();
     return c;
   }
 
@@ -145,14 +184,22 @@ export class Client {
     if (!reuse) {
       peer.on('error', (err: { type?: string }) => {
         if (err.type === 'peer-unavailable') { this.status = this.lobby ? 'lost' : 'failed'; this.emit({ t: 'update' }); this.again(); }
-        else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') { peer.destroy(); this.peer = null; this.again(); }
+        else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
+          peer.destroy(); this.peer = null;
+          if (++this.openFails >= 2) this.useRelay(); else this.again();
+        }
       });
       peer.on('disconnected', () => { if (!this.disposed && !peer.destroyed) setTimeout(() => peer.reconnect(), 1500); });
     }
     const go = () => {
       const conn = peer.connect(PREFIX + this.code, { reliable: true });
       this.conn = conn;
-      const timeout = setTimeout(() => { if (!conn.open) { conn.close(); this.again(); } }, 9000);
+      const timeout = setTimeout(() => {
+        if (conn.open) return;
+        conn.close();
+        // the host exists but the direct link would not open: a strict network — use the relay
+        if (++this.openFails >= 1) this.useRelay(); else this.again();
+      }, 9000);
       conn.on('open', () => {
         clearTimeout(timeout);
         this.status = 'ok';
@@ -165,8 +212,36 @@ export class Client {
     if (peer.open) go(); else peer.once('open', go);
   }
 
+  private useRelay() {
+    if (this.viaRelay || this.disposed || !this.code) return;
+    this.viaRelay = true;
+    if (this.retry) { clearTimeout(this.retry); this.retry = null; }
+    this.conn?.close(); this.conn = null;
+    this.peer?.destroy(); this.peer = null;
+    const code = this.code;
+    connectRelay((c) => {
+      if (this.disposed) { c.end(true); return; }
+      this.relay = c;
+      c.subscribe(downTopic(code, this.clientId));
+      c.on('message', (_topic, payload) => {
+        const m = decode<ToClient>(payload);
+        if (!m) return;
+        this.lastHeard = Date.now();
+        if (this.status !== 'ok' && this.status !== 'full') { this.status = 'ok'; this.emit({ t: 'update' }); }
+        this.handle(m);
+      });
+      const hello = () => this.send({ t: 'hello', clientId: this.clientId, name: this.name });
+      hello();
+      this.lastHeard = Date.now();
+      this.relayTimer = setInterval(() => {
+        c.publish(upTopic(code), encode({ from: this.clientId, msg: { t: 'ping' } }));
+        if (Date.now() - this.lastHeard > 25000 && this.status === 'ok') { this.status = 'lost'; this.emit({ t: 'update' }); hello(); }
+      }, 8000);
+    });
+  }
+
   private again() {
-    if (this.disposed || this.retry) return;
+    if (this.disposed || this.retry || this.viaRelay) return;
     if (this.status === 'ok') { this.status = 'lost'; this.emit({ t: 'update' }); }
     this.retry = setTimeout(() => { this.retry = null; this.connectGuest(); }, 3000);
   }
@@ -176,6 +251,8 @@ export class Client {
     if (this.retry) clearTimeout(this.retry);
     this.conn?.close();
     this.peer?.destroy();
+    if (this.relayTimer) clearInterval(this.relayTimer);
+    this.relay?.end(true);
     this.host?.dispose();
   }
 }

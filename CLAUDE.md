@@ -39,7 +39,7 @@ declared control height token `--control-h`.
 - Waiting on: tile pick — https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z (`picks/rollover-tiles`);
   then set `DEFAULT_FINISH` in `src/ui/game.ts` (and drop the switcher if she answers "one tile").
   The picker page is generated: `python3 scripts/build-tile-picker.py`.
-- Open risk: no TURN relay — a very strict network (some mobile carriers) can block the direct link.
+- Strict networks: if the direct link will not open, guests fall back to a public MQTT relay (`src/net/relay.ts`, HiveMQ then EMQX). Force it with `?relay` to test.
 
 ## Testing tips
 - Two players in one browser: open the invite link with `?fresh` before the `#` in a second tab.

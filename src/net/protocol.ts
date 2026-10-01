@@ -31,6 +31,7 @@ export type ToClient =
   | { t: 'draft'; seat: number; board: Placed[]; seq: number }
   | { t: 'react'; seat: number; emoji: string }
   | { t: 'error'; error: string }
-  | { t: 'full' };
+  | { t: 'full' }
+  | { t: 'pong' };
 
 export const REACTIONS = ['👏', '😂', '😮', '😅', '❤️', '🎉', '🤔', '😎'];
