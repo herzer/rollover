@@ -82,12 +82,52 @@ export class GameView {
     window.addEventListener('pointercancel', this.onUp);
     this.loadRack();
     this.render();
+    if (import.meta.env.DEV) window.addEventListener('keydown', this.onDevKey);
   }
+
+  // ⌘⇧D / Ctrl+Shift+D — developer panel, dev builds only (never on a shipping surface)
+  private autoplay: ReturnType<typeof setInterval> | null = null;
+  private onDevKey = (e: KeyboardEvent) => {
+    if (!(e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd')) return;
+    e.preventDefault();
+    const open = this.el.querySelector('.devpanel');
+    if (open) { open.remove(); return; }
+    const p = document.createElement('div');
+    p.className = 'devpanel';
+    p.innerHTML = `<b>Developer</b>
+      <button class="btn sm" data-dev="banner" title="Preview the rollover banner">Rollover banner</button>
+      <button class="btn sm" data-dev="star" title="Preview a star card">Star card</button>
+      <button class="btn sm" data-dev="confetti" title="Preview confetti">Confetti</button>
+      <button class="btn sm" data-dev="react" title="Preview a reaction">Reaction</button>
+      <button class="btn sm" data-dev="auto" title="Play my turns with the hint, automatically">Autoplay my turns</button>`;
+    p.addEventListener('click', (ev) => {
+      const k = (ev.target as HTMLElement).closest('[data-dev]') as HTMLElement | null;
+      if (!k) return;
+      if (k.dataset.dev === 'banner') { this.banner(t().rollover); sfx.rollover(); }
+      if (k.dataset.dev === 'star') { const c = t().star.spotlight; this.starCard(c.title, c.body('Robin', 'Mama')); sfx.star(); }
+      if (k.dataset.dev === 'confetti') { confetti(this.el); sfx.win(); }
+      if (k.dataset.dev === 'react') this.floatReaction(this.seat, '🎉');
+      if (k.dataset.dev === 'auto') {
+        if (this.autoplay) { clearInterval(this.autoplay); this.autoplay = null; k.textContent = 'Autoplay my turns'; return; }
+        k.textContent = 'Stop autoplay';
+        this.autoplay = setInterval(() => {
+          const s = this.s;
+          if (!s || !this.myTurn) return;
+          const m = chooseMove(s, this.seat, 3, 60000);
+          if (m) this.client.send({ t: 'commit', board: m.board, seq: s.seq });
+          else this.client.send({ t: 'draw', seq: s.seq });
+        }, 1500);
+      }
+    });
+    this.el.appendChild(p);
+  };
 
   destroy() {
     this.off();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisible);
+    window.removeEventListener('keydown', this.onDevKey);
+    if (this.autoplay) clearInterval(this.autoplay);
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
     window.removeEventListener('pointercancel', this.onUp);

@@ -202,7 +202,7 @@ const de: Dict = {
   sortRunsTip: 'Nach Farbe und Zahl sortieren — so findest du Reihen leichter',
   sortGroups: 'Sortieren 7‑7‑7',
   sortGroupsTip: 'Nach Zahl sortieren — so findest du Gruppen leichter',
-  undo: 'Zurück',
+  undo: 'Rückgängig',
   undoTip: 'Alles so zurücklegen, wie es zu Beginn deines Zuges war',
   hint: 'Tipp',
   hintTip: 'Einen möglichen Zug zeigen',

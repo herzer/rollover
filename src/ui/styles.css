@@ -306,3 +306,4 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .popover.finishes small { font: 700 11.5px/1.1 "Nunito", sans-serif; color: var(--ink); }
 .status .btn.sm { vertical-align: middle; margin-left: 8px; }
 .status { height: auto; min-height: 28px; }
+.devpanel { position: absolute; left: 12px; bottom: 70px; z-index: 120; background: var(--paper); border: 2px dashed #c026d3; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
