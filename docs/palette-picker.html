@@ -267,7 +267,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 @keyframes shake { 25% { margin-left: -5px; } 75% { margin-left: 5px; } }
 
 /* ---------- overlays ---------- */
-.toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); background: #1f2328; color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: min(560px, 90vw); text-align: center; z-index: 80; box-shadow: 0 8px 20px rgba(0,0,0,.25); animation: toastIn .25s; }
+.toast { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); background: #1f2328; color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: min(560px, 90vw); text-align: center; z-index: 80; box-shadow: 0 8px 20px rgba(0,0,0,.25); animation: toastIn .25s; }
 .toast.warn { background: var(--warn); }
 @keyframes toastIn { from { transform: translate(-50%, 10px); opacity: 0; } }
 .banner { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none;
@@ -376,6 +376,12 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 
 .tile .jk svg.kface { stroke: none !important; width: 100%; height: auto; }
 .tile.joker .jk { width: 74%; filter: drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 1px rgba(80,40,0,.25)); }
+
+.ghost.hintspot { border: 2.5px dashed var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); animation: spot 1.1s ease-in-out infinite; }
+@keyframes spot { 50% { transform: scale(1.08); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 70%, transparent); } }
+.tile.hint { animation: hintbob .9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--gold), 0 0 18px 4px color-mix(in srgb, var(--gold) 60%, transparent) !important; }
+.toast .btn.sm { flex: none; }
+.toast .btn:not(.primary) { color: var(--ink); }
 
 /* Six tile finishes. The base `.tile` rules in styles.css are finish 1, Ivory.
    A finish is chosen by a class on any ancestor: .ts-porcelain, .ts-jade, .ts-wood, .ts-glass, .ts-clay. */
@@ -711,6 +717,15 @@ body.friendly {
     <h1>Rollover — the friendly color scheme</h1>
     <p class="sub">You said sweeter means 3D tiles and a friendly color scheme, and asked for some kitten love. The game now has thick, sculpted 3D tiles that lean back slightly, a kitten that sits on your rack, and a kitten as the joker. Below are three friendly color schemes, drawn live with the game’s own code. The game already uses the first one until you pick.</p>
   </header>
+
+  <div class="ledger" style="border-color:var(--ok)">
+    <h2 style="color:var(--ok)">Built — 2026-10-01</h2>
+    <ul>
+      <li><b>1 · Lilac evening</b> → built. It is now the game’s color scheme: lilac page, lavender felt, walnut rack, violet buttons. Sage and Seaside stay in the code, ready if you ever want them back.</li>
+      <li><b>2 · The kitten on the rack, and a kitten joker</b> → built as shown: it naps while others play, wakes on your turn, sends hearts for a good meld, rolls over on a rollover run, purrs when you tap it.</li>
+    </ul>
+    <p>Live at <a href="https://herzer.github.io/rollover/">herzer.github.io/rollover</a> — reload if it is already open.</p>
+  </div>
 
   <div class="ledger assume">
     <h2>The one rule this rests on — worth a yes or no first</h2>

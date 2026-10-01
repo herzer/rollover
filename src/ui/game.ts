@@ -20,7 +20,7 @@ export const FINISHES = ['ts-3d', 'ts-wood', '', 'ts-porcelain', 'ts-jade', 'ts-
  *  Maple, the classics and candy stay in the palette. */
 export const DEFAULT_FINISH = 'ts-3d';
 /** "Sweeter to me means 3D tiles and a friendly color scheme" (2026-09-30): friendly is the default look. */
-export const DEFAULT_PALETTE = 'pal-sage';
+export const DEFAULT_PALETTE = 'pal-lilac'; // her pick, picks/rollover-colors (2026-10-01)
 export const PALETTES = ['pal-sage', 'pal-sea', 'pal-lilac'];
 export function palette(): string {
   try { const p = localStorage.getItem('rollover.palette'); if (p && PALETTES.includes(p)) return p; } catch { /* storage blocked */ }

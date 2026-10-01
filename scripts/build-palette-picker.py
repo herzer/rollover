@@ -50,6 +50,15 @@ body = f'''<div class="wrap">
     <p class="sub">You said sweeter means 3D tiles and a friendly color scheme, and asked for some kitten love. The game now has thick, sculpted 3D tiles that lean back slightly, a kitten that sits on your rack, and a kitten as the joker. Below are three friendly color schemes, drawn live with the game’s own code. The game already uses the first one until you pick.</p>
   </header>
 
+  <div class="ledger" style="border-color:var(--ok)">
+    <h2 style="color:var(--ok)">Built — 2026-10-01</h2>
+    <ul>
+      <li><b>1 · Lilac evening</b> → built. It is now the game’s color scheme: lilac page, lavender felt, walnut rack, violet buttons. Sage and Seaside stay in the code, ready if you ever want them back.</li>
+      <li><b>2 · The kitten on the rack, and a kitten joker</b> → built as shown: it naps while others play, wakes on your turn, sends hearts for a good meld, rolls over on a rollover run, purrs when you tap it.</li>
+    </ul>
+    <p>Live at <a href="https://herzer.github.io/rollover/">herzer.github.io/rollover</a> — reload if it is already open.</p>
+  </div>
+
   <div class="ledger assume">
     <h2>The one rule this rests on — worth a yes or no first</h2>
     <p><b>Only the colors around the tiles change.</b> The 3D tile, the four number colors (coral, blue, marigold, charcoal) and the kitten are the same in all three schemes. Neon and candy stay available in the game’s palette menu for anyone who wants them.</p>
