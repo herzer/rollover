@@ -9,7 +9,9 @@ export function confetti(host: HTMLElement, ms = 3200) {
   host.appendChild(c);
   const g = c.getContext('2d')!;
   g.scale(dpr, dpr);
-  const colors = ['#ff3b6b', '#2f7bff', '#ff9416', '#ffc21a', '#3ccf91', '#a35bff', '#ff8fb1'];
+  const colors = document.body.classList.contains('neon')
+    ? ['#ff2a6d', '#22e4ff', '#ffb020', '#b48cff', '#ffffff']
+    : ['#ff3b6b', '#2f7bff', '#ff9416', '#ffc21a', '#3ccf91', '#a35bff', '#ff8fb1'];
   const bits = Array.from({ length: 160 }, () => ({
     x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.35,
     vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 14 - 4,

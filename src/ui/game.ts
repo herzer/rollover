@@ -13,9 +13,12 @@ import { sfx, isMuted, setMuted } from './sound';
 import { confetti } from './fx';
 
 const RACK_ROWS = 2;
-export const FINISHES = ['ts-gummy', 'ts-sugar', 'ts-hardcandy', '', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'];
-/** Stefanie's pick (2026-09-30, tile picker option 7): Maple. Candy was "too candy" — it stays in the palette. */
-export const DEFAULT_FINISH = 'ts-wood';
+export const FINISHES = ['ts-neon', 'ts-chrome', 'ts-wood', '', 'ts-porcelain', 'ts-jade', 'ts-glass', 'ts-clay', 'ts-gummy', 'ts-sugar', 'ts-hardcandy'];
+/** Stefanie (2026-09-30): Maple "for now", then "a crisper, more Blade Runner look" — neon is the default;
+ *  Maple, the classics and candy stay in the palette. */
+export const DEFAULT_FINISH = 'ts-neon';
+/** A neon tile brings the night-city look (table, rack, chrome) with it. */
+const NEON = ['ts-neon', 'ts-chrome'];
 /** A candy tile brings the whole candy look (table, rack, buttons) with it; every other tile keeps the classic table. */
 const CANDY = ['ts-gummy', 'ts-sugar', 'ts-hardcandy'];
 export function finish(): string {
@@ -29,6 +32,7 @@ export function applyFinish() {
   const f = finish();
   if (f) document.body.classList.add(f);
   document.body.classList.toggle('candy', CANDY.includes(f));
+  document.body.classList.toggle('neon', NEON.includes(f));
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);

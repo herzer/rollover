@@ -300,7 +300,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   .game .rotate-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--soft); font-size: 13px; font-weight: 700; padding: 2px 0 4px; }
 }
 
-.popover.finishes { grid-template-columns: repeat(3, 84px); }
+.popover.finishes { grid-template-columns: repeat(4, 84px); }
 .popover.finishes button { height: auto; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; border: 2px solid transparent; }
 .popover.finishes button.on { border-color: var(--accent); background: var(--accent-soft); }
 .popover.finishes small { font: 700 11.5px/1.1 "Nunito", sans-serif; color: var(--ink); }

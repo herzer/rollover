@@ -1,0 +1,174 @@
+/* Neon noir (2026-09-30, Stefanie: "a crisper, more Blade Runner look").
+   .neon on <body> themes the app: night city haze, rain, a HUD-framed glass table, a gunmetal rack
+   with an underglow. Tile finishes: .ts-neon (dark glass, neon-tube numbers) and .ts-chrome (crisp steel).
+   The fourth tile color becomes ultraviolet — a black number cannot glow on a dark table. */
+
+.neon {
+  --bg: #07080d;
+  --paper: #0f131c;
+  --ink: #e6f1ff;
+  --soft: #8b95a8;
+  --line: #243044;
+  --accent: #22e4ff;
+  --accent-ink: #031016;
+  --accent-soft: rgba(34,228,255,.14);
+  --warn: #ff2a6d;
+  --gold: #ffb020;
+  --n-red: #ff2a6d;
+  --n-blue: #22e4ff;
+  --n-amber: #ffb020;
+  --n-violet: #b48cff;
+  color-scheme: dark;
+}
+body.neon {
+  background:
+    radial-gradient(60% 50% at 10% 0%, rgba(255,42,109,.20), transparent 70%),
+    radial-gradient(55% 45% at 100% 100%, rgba(34,228,255,.16), transparent 70%),
+    radial-gradient(40% 35% at 70% 10%, rgba(255,150,40,.10), transparent 70%),
+    #07080d;
+  color: var(--ink);
+}
+/* rain: thin slanted streaks drifting down, behind everything */
+body.neon::before {
+  content: ""; position: fixed; inset: -50px; pointer-events: none; z-index: 0;
+  background-image: repeating-linear-gradient(103deg, rgba(180,220,255,.05) 0 1px, transparent 1px 9px),
+                    repeating-linear-gradient(97deg, rgba(180,220,255,.035) 0 1px, transparent 1px 23px);
+  animation: rain 1.4s linear infinite;
+}
+@keyframes rain { to { background-position: -40px 220px, -25px 160px; } }
+@media (prefers-reduced-motion: reduce) { body.neon::before { animation: none; } }
+body.neon #app { position: relative; z-index: 1; }
+.neon .game { background: transparent; }
+
+/* chrome */
+.neon .btn { background: rgba(15,19,28,.85); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); box-shadow: none; letter-spacing: .02em; }
+.neon .btn:hover { background: #151b27; border-color: #34425c; }
+.neon .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 0 16px rgba(34,228,255,.45); }
+.neon .btn.primary:hover { background: #5cecff; }
+.neon .btn[disabled] { opacity: .35; box-shadow: none; }
+.neon .chip { background: rgba(15,19,28,.85); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); }
+.neon .chip .sc { background: var(--accent-soft); color: var(--accent); }
+.neon .chip.turn { border-color: var(--n-amber); box-shadow: 0 0 0 1px var(--n-amber), 0 0 18px rgba(255,176,32,.35); }
+.neon .card { background: rgba(15,19,28,.82); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 20px 40px rgba(0,0,0,.4); backdrop-filter: blur(6px); }
+.neon input.field, .neon select.field { background: #0a0d14; border-color: var(--line); color: var(--ink); border-radius: 6px; }
+.neon .seat { border-color: var(--line); }
+.neon .scores td { border-color: var(--line); }
+.neon .logo, .neon .brand h1 {
+  font-family: "Chakra Petch", "Rajdhani", sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .14em;
+  color: #ffe9f1; text-shadow: 0 0 4px #ff2a6d, 0 0 14px #ff2a6d, 0 0 28px rgba(255,42,109,.6);
+}
+.neon .brand h1 { font-size: 40px; }
+.neon .bigcode { font-family: "Chakra Petch", monospace; color: var(--accent); text-shadow: 0 0 10px rgba(34,228,255,.6); }
+.neon .status { font-family: "Chakra Petch", sans-serif; letter-spacing: .04em; text-transform: uppercase; font-size: 13px; }
+.neon .status.mine { color: var(--accent); text-shadow: 0 0 10px rgba(34,228,255,.5); }
+.neon .poolstack { background: linear-gradient(160deg, #1c2230, #0b0e15); box-shadow: 0 0 0 1px rgba(34,228,255,.5), 0 2px 0 #05070b, 0 0 12px rgba(34,228,255,.35); border-radius: 3px; }
+.neon .toast { background: rgba(10,13,20,.95); border: 1px solid var(--accent); border-radius: 6px; box-shadow: 0 0 24px rgba(34,228,255,.25); }
+.neon .toast.warn { border-color: var(--warn); box-shadow: 0 0 24px rgba(255,42,109,.35); background: rgba(20,6,12,.95); }
+.neon .modal, .neon .starcard { background: #0d1119; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; }
+.neon .starcard { box-shadow: 0 0 0 1px var(--n-amber), 0 0 40px rgba(255,176,32,.3); }
+.neon .modal h2, .neon .starcard h3 { font-family: "Chakra Petch", sans-serif; letter-spacing: .03em; }
+.neon .popover { background: #0d1119; border-color: var(--line); }
+.neon .popover button:hover { background: #151b27; }
+.neon .popover.finishes small { color: var(--ink); }
+.neon .reveal { background: rgba(255,176,32,.08); border-color: var(--n-amber); color: var(--ink); }
+.neon .banner { background: none; -webkit-text-fill-color: #fff; color: #fff; font-family: "Chakra Petch", sans-serif; text-transform: uppercase; letter-spacing: .08em;
+  filter: none; text-shadow: 0 0 6px #ff2a6d, 0 0 20px #ff2a6d, 0 0 40px #22e4ff, 0 0 80px rgba(34,228,255,.6); }
+
+/* table: dark glass under a HUD frame */
+.neon .board {
+  border-radius: 6px;
+  background:
+    linear-gradient(to right, rgba(34,228,255,.05) 1px, transparent 1px) 14px 14px / calc(var(--tw) + var(--gap)) calc(var(--th) + var(--gap)),
+    linear-gradient(to bottom, rgba(34,228,255,.05) 1px, transparent 1px) 14px 14px / calc(var(--tw) + var(--gap)) calc(var(--th) + var(--gap)),
+    radial-gradient(80% 70% at 50% 0%, rgba(34,228,255,.07), transparent 70%),
+    linear-gradient(180deg, rgba(14,18,28,.92), rgba(7,9,14,.95));
+  box-shadow: 0 0 0 1px rgba(34,228,255,.35), 0 0 40px rgba(34,228,255,.10), inset 0 0 60px rgba(0,0,0,.6);
+}
+.neon .board::before {
+  content: ""; position: absolute; inset: -5px; pointer-events: none;
+  --b: #22e4ff;
+  background:
+    linear-gradient(var(--b), var(--b)) top left / 26px 2px no-repeat,
+    linear-gradient(var(--b), var(--b)) top left / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / 26px 2px no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / 26px 2px no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / 2px 26px no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / 26px 2px no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / 2px 26px no-repeat;
+  filter: drop-shadow(0 0 4px var(--b));
+}
+.neon .board.mine::after { background-image: linear-gradient(to right, rgba(34,228,255,.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(34,228,255,.10) 1px, transparent 1px); }
+.neon .seg.ok { box-shadow: 0 0 0 1px rgba(34,228,255,.8), 0 0 12px rgba(34,228,255,.35); background: rgba(34,228,255,.05); border-radius: 4px; }
+.neon .seg.bad { box-shadow: 0 0 0 1px var(--n-red), 0 0 14px rgba(255,42,109,.5); background: rgba(255,42,109,.08); border-radius: 4px; }
+.neon .seg.wrap.ok { box-shadow: 0 0 0 1px var(--n-amber), 0 0 18px rgba(255,176,32,.55); background: rgba(255,176,32,.07); }
+
+/* rack: gunmetal with a magenta underglow */
+.neon .rack {
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #1d2330 0%, #121722 55%, #0b0e15 100%);
+  box-shadow: 0 0 0 1px #2a3448, inset 0 1px 0 rgba(255,255,255,.08), 0 3px 0 -1px #ff2a6d, 0 6px 30px rgba(255,42,109,.35);
+}
+.neon .rack .ledge { background: rgba(255,42,109,.35); box-shadow: 0 0 8px rgba(255,42,109,.5); height: 1px; }
+
+/* ---------------------------------------------- tile: neon glass (default) -- */
+.ts-neon .tile.c0 { --nc: var(--n-red, #ff2a6d); }
+.ts-neon .tile.c1 { --nc: var(--n-blue, #22e4ff); }
+.ts-neon .tile.c2 { --nc: var(--n-amber, #ffb020); }
+.ts-neon .tile.c3 { --nc: var(--n-violet, #b48cff); }
+.ts-neon .tile.joker { --nc: #ffffff; }
+.ts-neon .tile {
+  border-radius: calc(var(--tw) * .09);
+  background:
+    linear-gradient(118deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,0) 38%),
+    linear-gradient(170deg, #1f2533 0%, #121722 55%, #0a0d14 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.07),
+    inset 0 1px 0 rgba(255,255,255,.22),
+    0 0 0 1px color-mix(in srgb, var(--nc) 55%, transparent),
+    0 calc(var(--tw) * .05) 0 #04060a,
+    0 0 calc(var(--tw) * .3) color-mix(in srgb, var(--nc) 22%, transparent),
+    0 calc(var(--tw) * .12) calc(var(--tw) * .18) rgba(0,0,0,.6);
+}
+.ts-neon .tile::before { content: none; }
+.ts-neon .tile::after { background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); border-radius: inherit; }
+.ts-neon .tile .n {
+  font-family: "Rajdhani", "Chakra Petch", sans-serif; font-weight: 700; font-size: calc(var(--tw) * .64); letter-spacing: 0;
+  background: none; -webkit-text-fill-color: color-mix(in srgb, var(--nc) 35%, #fff); color: color-mix(in srgb, var(--nc) 35%, #fff);
+  filter: none;
+  text-shadow: 0 0 2px var(--nc), 0 0 7px var(--nc), 0 0 16px color-mix(in srgb, var(--nc) 70%, transparent);
+}
+.ts-neon .tile.joker .jk svg { stroke: #fff; }
+.ts-neon .tile.joker .jk { filter: drop-shadow(0 0 3px #ff2a6d) drop-shadow(0 0 7px #22e4ff); }
+.ts-neon .tile .st { color: #ffd27a; text-shadow: 0 0 6px #ffb020, 0 0 12px #ffb020; }
+.ts-neon .tile.sel { box-shadow: 0 0 0 2px #ffb020, 0 0 20px rgba(255,176,32,.6), 0 12px 18px rgba(0,0,0,.6); }
+.ts-neon .tile.hint { box-shadow: 0 0 0 2px #22e4ff, 0 0 20px rgba(34,228,255,.7); }
+
+/* ---------------------------------------------- tile: chrome (crisp steel) -- */
+.ts-chrome .tile.c0 { --nc: #e0114f; }
+.ts-chrome .tile.c1 { --nc: #0a8fb8; }
+.ts-chrome .tile.c2 { --nc: #e08a00; }
+.ts-chrome .tile.c3 { --nc: #6a3fd6; }
+.ts-chrome .tile {
+  border-radius: calc(var(--tw) * .08);
+  background:
+    linear-gradient(118deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #f5f7fb 0%, #d5dbe5 48%, #c3cad6 52%, #e4e8ef 100%);
+  box-shadow:
+    inset 0 1px 0 #fff, inset 0 -1px 0 rgba(0,0,0,.25),
+    0 calc(var(--tw) * .045) 0 #7d8696,
+    0 calc(var(--tw) * .07) 0 #4a5160,
+    0 0 calc(var(--tw) * .25) color-mix(in srgb, var(--nc) 25%, transparent),
+    0 calc(var(--tw) * .12) calc(var(--tw) * .18) rgba(0,0,0,.55);
+}
+.ts-chrome .tile::before { content: none; }
+.ts-chrome .tile::after { content: none; }
+.ts-chrome .tile .n {
+  font-family: "Rajdhani", "Chakra Petch", sans-serif; font-weight: 700; font-size: calc(var(--tw) * .64); letter-spacing: 0;
+  background: none; -webkit-text-fill-color: var(--nc); color: var(--nc);
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 -1px 0 rgba(0,0,0,.3));
+}
+.ts-chrome .tile.joker .jk svg { stroke: #2a3040; }

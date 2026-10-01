@@ -1,6 +1,7 @@
 import './ui/styles.css';
 import './ui/tile-styles.css';
 import './ui/candy.css';
+import './ui/neon.css';
 import { Client, newCode, knownGame } from './net/client';
 import { Host } from './net/host';
 import { GameView, tileClass, tileHTML, applyFinish } from './ui/game';
@@ -222,8 +223,8 @@ function lab() {
   const row = (tiles: Tile[], tw: number) => tiles.map((x) => `<span class="${tileClass(x)}" style="position:relative;--tw:${tw}px;--th:${Math.round(tw * 1.32)}px;--pos:none">${tileHTML(x)}</span>`).join('');
   const set = [mk(0, 12), mk(0, 13), mk(0, 1, false, true), mk(1, 7), mk(2, 7), mk(3, 7), mk(0, 0, true)];
   const only = new URLSearchParams(location.search).get('lab');
-  for (const f of ['ts-gummy', 'ts-sugar', 'ts-hardcandy']) document.body.classList.remove(f);
-  const finishes = ['ts-gummy', 'ts-sugar', 'ts-hardcandy', '', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'].filter((f) => !only || only === 'all' || f === only || (only === 'ivory' && f === ''));
+  document.body.className = 'neon';
+  const finishes = ['ts-neon', 'ts-chrome', 'ts-gummy', 'ts-sugar', 'ts-hardcandy', '', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'].filter((f) => !only || only === 'all' || f === only || (only === 'ivory' && f === ''));
   app.innerHTML = `<div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:20px">${finishes.map((f) => `
     <div class="${f}" style="display:flex;flex-direction:column;gap:10px">
       <div class="board" style="width:auto;height:auto;padding:26px 24px 34px;display:flex;gap:7px">${row(set, 58)}</div>

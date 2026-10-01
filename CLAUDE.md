@@ -16,8 +16,12 @@ or against computer players. Built 2026-09-30.
   three-dimensional candy … exciting and desirable to play."** So the whole app is candy: `src/ui/candy.css`
   (`.candy` on body: sprinkle table + candy-cane frame, chocolate rack, gummy buttons, bounce/jiggle) and
   candy tile finishes (Gummy, Marshmallow, Hard candy). Then, same day: **"too candy for me"** — she
-  picked **Maple** (picker option 7). Maple is `DEFAULT_FINISH`; the candy look now comes only with a
-  candy tile chosen from the palette (`applyFinish` toggles `.candy` on body).
+  picked **Maple** (picker option 7) "for now", then: **"a crisper, more Blade Runner look."** So the
+  default is now **neon noir** — `src/ui/neon.css` (`.neon` on body: rain, haze, HUD-framed glass table,
+  gunmetal rack with magenta underglow; tiles `.ts-neon` dark glass with neon-tube numbers = default,
+  `.ts-chrome` crisp steel). The 4th color is ultraviolet in neon (black can't glow). Maple, classics and
+  candy stay in the palette; a candy tile brings `.candy`, a neon tile brings `.neon` (`applyFinish`).
+  Note: the app's own theme is dark by her request; the light-mode rule is about mockups/previews.
 
 ## Name and trademark (Stefanie, 2026-09-30)
 The game is **Rollover** — "a tile rummy game". Tile rummy is a generic, decades-old game;
