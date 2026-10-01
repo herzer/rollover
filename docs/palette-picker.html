@@ -1,0 +1,956 @@
+<meta charset="utf-8">
+<title>Rollover Color Picks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3efe6;
+  --paper: #ffffff;
+  --ink: #1f2328;
+  --soft: #6a6f78;
+  --line: #ddd6c8;
+  --accent: #187a5c;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff1ea;
+  --warn: #b4341f;
+  --gold: #e9b024;
+  --control-h: 40px;
+  --control-h-sm: 32px;
+  --radius: 10px;
+
+  /* tile colors: number ink on ivory */
+  --t-red: #d42a3b;
+  --t-blue: #1d5fd0;
+  --t-orange: #e98a00;
+  --t-black: #22252b;
+
+  /* tile geometry, set from JS to fit the window */
+  --tw: 44px;
+  --th: 58px;
+  --rtw: 44px;
+  --rth: 58px;
+  --gap: 4px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 "Nunito", ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overflow: auto;
+}
+button, input, select { font: inherit; color: inherit; }
+
+/* ---------- controls: one declared height, two button styles ---------- */
+.btn {
+  height: var(--control-h);
+  padding: 0 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-weight: 700; font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .08s, box-shadow .15s, background .15s;
+  box-shadow: 0 1px 0 rgba(0,0,0,.06);
+}
+.btn:hover { background: #faf8f3; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: #136a4f; }
+.btn[disabled] { opacity: .45; cursor: default; transform: none; }
+.btn.sm { height: var(--control-h-sm); padding: 0 10px; font-size: 13px; }
+.btn.icon { width: var(--control-h); padding: 0; }
+.btn.sm.icon { width: var(--control-h-sm); }
+.btn .ic { flex: none; }
+.btn.big { height: 52px; font-size: 16px; padding: 0 22px; border-radius: 13px; }
+
+input.field, select.field {
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  min-width: 0;
+}
+input.field:focus, select.field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* switch row */
+.switch { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
+.switch input { appearance: none; width: 42px; height: 24px; border-radius: 12px; background: #cfc8b9; position: relative; flex: none; cursor: pointer; transition: background .15s; margin: 0; }
+.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .15s; }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { left: 21px; }
+.switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- home + lobby ---------- */
+.screen { height: 100%; overflow: auto; padding: 24px 16px 60px; }
+.home { max-width: 560px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 14px; margin: 18px 0 6px; }
+.brand h1 { font: 800 44px/1 "Baloo 2", "Nunito", sans-serif; margin: 0; letter-spacing: -.01em; }
+.brand-tiles { display: flex; gap: 4px; }
+.tagline { color: var(--soft); margin: 0 0 22px; font-size: 16px; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin: 0 0 14px; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
+.card h2 { font-size: 13px; letter-spacing: .07em; text-transform: uppercase; color: var(--soft); margin: 0 0 10px; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row > .grow { flex: 1; }
+.lang-toggle { margin-left: auto; }
+.msg { color: var(--soft); font-size: 14px; }
+.msg.warn { color: var(--warn); }
+.seat { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); min-height: 52px; }
+.seat:last-child { border-bottom: 0; }
+.seat .who { flex: 1; font-weight: 700; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.seat .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #3cb179; flex: none; }
+.dot.off { background: #c9c2b4; }
+.share { display: flex; gap: 8px; }
+.share input { flex: 1; font: 13px ui-monospace, Menlo, monospace; }
+.bigcode { font: 800 30px/1 "Baloo 2", sans-serif; letter-spacing: .12em; }
+.scores { width: 100%; border-collapse: collapse; }
+.scores td { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.scores td:last-child { text-align: right; color: var(--soft); }
+
+/* ---------- the game screen ---------- */
+.game { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+.topbar { display: flex; align-items: center; gap: 10px; padding: 8px 12px; min-height: 56px; }
+.topbar .logo { font: 800 24px/1 "Baloo 2", sans-serif; margin-right: 4px; }
+.players { display: flex; gap: 8px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.chip { display: flex; align-items: center; gap: 8px; height: var(--control-h); padding: 0 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); white-space: nowrap; font-weight: 700; font-size: 14px; position: relative; transition: box-shadow .2s, border-color .2s; }
+.chip .cnt { font-weight: 600; color: var(--soft); font-size: 13px; }
+.chip .sc { font-weight: 800; font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 1px 6px; }
+.chip.turn { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233,176,36,.35); }
+.chip.turn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
+.chip .off { color: var(--warn); font-size: 12px; font-weight: 700; }
+@keyframes pulse { 50% { opacity: .3; } }
+.poolchip { display: flex; align-items: center; gap: 8px; }
+.poolstack { width: 22px; height: 26px; border-radius: 4px; background: linear-gradient(160deg, #fffdf7, #e7dcc2); box-shadow: 0 2px 0 #cbbd9c, 0 4px 0 #b9aa86, 0 6px 6px rgba(0,0,0,.2); }
+
+.status { text-align: center; font-weight: 800; font-size: 15px; height: 28px; line-height: 28px; color: var(--ink); }
+.status.mine { color: var(--accent); }
+.status .sub { font-weight: 600; color: var(--soft); margin-left: 8px; }
+.status .sub.ok { color: var(--accent); }
+
+.tablewrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 0; }
+.board {
+  position: relative;
+  width: calc(var(--cols) * (var(--tw) + var(--gap)) + 28px);
+  height: calc(var(--rows) * (var(--th) + var(--gap)) + 28px);
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%),
+    radial-gradient(ellipse at center, #2c8a63 0%, #1f6c4d 70%, #195a40 100%);
+  box-shadow: inset 0 0 0 6px #6b4a2b, inset 0 0 0 8px #4f3520, inset 0 4px 30px rgba(0,0,0,.35), 0 8px 24px rgba(40,30,10,.18);
+  flex: none;
+}
+.board.mine::after {
+  content: ""; position: absolute; inset: 14px; border-radius: 10px; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.07) 1px, transparent 1px);
+  background-size: calc(var(--tw) + var(--gap)) calc(var(--th) + var(--gap));
+}
+.seg { position: absolute; border-radius: 9px; pointer-events: none; transition: all .2s; }
+.seg.ok { box-shadow: 0 0 0 2px rgba(150,255,200,.55); background: rgba(150,255,200,.08); }
+.seg.bad { box-shadow: 0 0 0 2px rgba(255,90,90,.95); background: rgba(255,80,80,.18); }
+.seg.wrap.ok { box-shadow: 0 0 0 2px rgba(255,215,90,.9); background: rgba(255,215,90,.12); }
+
+.rackwrap { display: flex; justify-content: center; padding: 6px 10px 4px; }
+.rack {
+  position: relative;
+  width: calc(var(--rcols) * (var(--rtw) + var(--gap)) + 20px);
+  height: calc(var(--rrows) * (var(--rth) + var(--gap)) + 18px);
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(92deg, rgba(255,255,255,.04) 0 3px, rgba(0,0,0,.03) 3px 7px),
+    linear-gradient(180deg, #a0703f 0%, #8a5d31 45%, #6e4724 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.25), 0 10px 18px rgba(60,35,10,.28);
+}
+.rack .ledge { position: absolute; left: 10px; right: 10px; height: 4px; border-radius: 2px; background: rgba(0,0,0,.22); box-shadow: 0 1px 0 rgba(255,255,255,.18); }
+
+.actions { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 8px 12px 12px; flex-wrap: wrap; }
+.actions .spacer { flex: 1; max-width: 40px; }
+
+.reveals { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 0 10px; }
+.reveal { background: rgba(233,176,36,.15); border: 1px dashed var(--gold); border-radius: 10px; padding: 4px 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.mini { display: inline-flex; gap: 2px; }
+.mini .tile { position: relative; --tw: 20px; --th: 27px; }
+
+/* ---------- tiles: ivory, beveled, engraved numbers ---------- */
+.tiles { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.tile {
+  position: absolute; left: 0; top: 0;
+  transform: var(--pos);
+  width: var(--tw); height: var(--th);
+  border-radius: calc(var(--tw) * .16);
+  background:
+    radial-gradient(130% 70% at 28% 8%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(165deg, #fffef9 0%, #f8f1e1 48%, #ecdfc4 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,1),
+    inset 1.5px 0 0 rgba(255,255,255,.7),
+    inset -1.5px 0 1px rgba(160,130,80,.25),
+    inset 0 -2.5px 2px rgba(160,130,80,.35),
+    0 calc(var(--tw) * .04) 0 #e2d6ba,
+    0 calc(var(--tw) * .07) 0 #cdbd98,
+    0 calc(var(--tw) * .095) 0 #ad9b74,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .17) rgba(20,15,5,.4);
+  display: grid; place-items: center;
+  pointer-events: auto; cursor: grab;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform .32s cubic-bezier(.2,.8,.2,1), width .25s, height .25s, box-shadow .2s, filter .2s;
+  will-change: transform;
+}
+.tile::before {
+  /* the slightly recessed face inside the raised rim */
+  content: ""; position: absolute; inset: 7% 8% 9%;
+  border-radius: calc(var(--tw) * .11);
+  background: linear-gradient(180deg, rgba(120,95,50,.07) 0%, rgba(255,255,255,.25) 60%, rgba(255,255,255,.55) 100%);
+  box-shadow: inset 0 1px 2px rgba(120,90,40,.22), inset 0 -1px 0 rgba(255,255,255,.8), 0 1px 0 rgba(255,255,255,.7);
+  pointer-events: none;
+}
+.tile::after {
+  /* a soft gloss streak, as if lit from the upper left */
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(118deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 26%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 78%, rgba(255,255,255,.18) 100%);
+  pointer-events: none;
+}
+.tile .n {
+  position: relative; z-index: 1;
+  font: 800 calc(var(--tw) * .58)/1 "Baloo 2", "Nunito", sans-serif;
+  margin-top: calc(var(--tw) * .06);
+  letter-spacing: -.03em;
+  /* lacquered paint in an engraved groove: darker at the top lip, brighter below */
+  color: var(--tc);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 70%, #000) 0%, var(--tc) 38%, color-mix(in srgb, var(--tc) 82%, #fff) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 -.5px 0 rgba(60,40,10,.35));
+  pointer-events: none;
+}
+.tiles .tile.onrack { --tw: var(--rtw); --th: var(--rth); }
+.tile.c0 { --tc: var(--t-red); }
+.tile.c1 { --tc: var(--t-blue); }
+.tile.c2 { --tc: var(--t-orange); }
+.tile.c3 { --tc: var(--t-black); }
+.tile .jk { position: relative; z-index: 1; width: 62%; color: var(--tc); filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 -1px 0 rgba(0,0,0,.15)); pointer-events: none; display: grid; place-items: center; }
+.tile .jk svg { width: 100%; height: auto; }
+.tile.joker .jk svg { stroke: url(#crownInk); }
+.tile .st {
+  position: absolute; z-index: 2; top: calc(var(--tw) * .05); right: calc(var(--tw) * .07);
+  font-size: calc(var(--tw) * .26); line-height: 1; color: var(--gold);
+  text-shadow: 0 0 4px rgba(233,176,36,.7), 0 1px 0 rgba(120,80,0,.4);
+  animation: twinkle 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes twinkle { 50% { transform: scale(1.25) rotate(18deg); opacity: .75; } }
+.tile.back { background: linear-gradient(160deg, #3d7f68, #245c48); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 0 #18402f, 0 4px 6px rgba(0,0,0,.3); }
+
+.tile.sel { transform: var(--pos) translateY(calc(var(--tw) * -.18)) !important; box-shadow:
+    inset 0 1.5px 0 #fff, inset 0 -2.5px 2px rgba(160,130,80,.35),
+    0 0 0 3px var(--gold), 0 calc(var(--tw) * .3) calc(var(--tw) * .3) rgba(20,15,5,.35); }
+.tile.hint { animation: hintbob 1s ease-in-out infinite; box-shadow: inset 0 1.5px 0 #fff, 0 0 0 3px #59d9a0, 0 6px 12px rgba(0,0,0,.3); }
+@keyframes hintbob { 50% { transform: var(--pos) translateY(-6px); } }
+.tile.fresh { animation: fresh 2.6s ease-out; }
+@keyframes fresh { 0%, 40% { box-shadow: 0 0 0 3px var(--gold), 0 0 18px 6px rgba(255,214,80,.75); } }
+.tile.dragging { transition: none; z-index: 50; cursor: grabbing; filter: brightness(1.03);
+  box-shadow: inset 0 1.5px 0 #fff, inset 0 -2.5px 2px rgba(160,130,80,.35), 0 calc(var(--tw) * .45) calc(var(--tw) * .4) rgba(20,15,5,.35); }
+.tile.ghosted { opacity: .55; }
+.tile.locked { cursor: default; }
+.tile.shake { animation: shake .35s; }
+@keyframes shake { 25% { margin-left: -5px; } 75% { margin-left: 5px; } }
+
+/* ---------- overlays ---------- */
+.toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); background: #1f2328; color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: min(560px, 90vw); text-align: center; z-index: 80; box-shadow: 0 8px 20px rgba(0,0,0,.25); animation: toastIn .25s; }
+.toast.warn { background: var(--warn); }
+@keyframes toastIn { from { transform: translate(-50%, 10px); opacity: 0; } }
+.banner { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none;
+  font: 800 clamp(48px, 9vw, 110px)/1 "Baloo 2", sans-serif; color: #fff;
+  background: linear-gradient(90deg, var(--t-red), var(--t-orange), var(--gold), var(--t-blue));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 0 rgba(0,0,0,.25)) drop-shadow(0 10px 20px rgba(0,0,0,.25));
+  animation: bannerIn 1.8s cubic-bezier(.2,.9,.2,1) forwards; white-space: nowrap; }
+@keyframes bannerIn { 0% { transform: translate(-50%, -50%) scale(.3) rotate(-12deg); opacity: 0; } 18% { transform: translate(-50%, -50%) scale(1.1) rotate(3deg); opacity: 1; } 30% { transform: translate(-50%, -50%) scale(1) rotate(0); } 80% { opacity: 1; } 100% { transform: translate(-50%, -70%) scale(1); opacity: 0; } }
+.starcard { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 85; background: var(--paper); border-radius: 18px; padding: 18px 22px; width: min(420px, 90vw); text-align: center; box-shadow: 0 0 0 3px var(--gold), 0 20px 50px rgba(0,0,0,.3); animation: pop .35s cubic-bezier(.2,.9,.3,1.3); }
+.starcard .big { font-size: 46px; line-height: 1; color: var(--gold); text-shadow: 0 0 18px rgba(233,176,36,.8); }
+.starcard h3 { margin: 6px 0 4px; font: 800 22px/1.2 "Baloo 2", sans-serif; }
+.starcard p { margin: 0; color: var(--soft); }
+@keyframes pop { from { transform: translate(-50%, -50%) scale(.6); opacity: 0; } }
+.float { position: absolute; z-index: 95; font-size: 44px; pointer-events: none; animation: floatUp 2.4s ease-out forwards; }
+@keyframes floatUp { 0% { transform: translateY(0) scale(.4); opacity: 0; } 15% { transform: translateY(-10px) scale(1.2); opacity: 1; } 100% { transform: translateY(-160px) scale(1); opacity: 0; } }
+.popover { position: absolute; z-index: 70; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 6px; display: grid; grid-template-columns: repeat(4, 44px); gap: 4px; box-shadow: 0 12px 30px rgba(0,0,0,.18); }
+.popover button { height: 44px; border: 0; background: transparent; font-size: 26px; border-radius: 10px; cursor: pointer; }
+.popover button:hover { background: var(--bg); }
+.modal-back { position: absolute; inset: 0; background: rgba(30,25,15,.35); z-index: 100; display: grid; place-items: center; padding: 16px; animation: fadeIn .2s; }
+@keyframes fadeIn { from { opacity: 0; } }
+.modal { background: var(--paper); border-radius: 18px; padding: 22px; width: min(520px, 100%); max-height: 90%; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.modal h2 { margin: 0 0 10px; font: 800 28px/1.1 "Baloo 2", sans-serif; }
+.modal table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; }
+.modal th, .modal td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+.modal th:first-child, .modal td:first-child { text-align: left; }
+.modal th { font-size: 12px; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; }
+.modal td.pos { color: var(--accent); font-weight: 800; }
+.modal td.neg { color: var(--warn); font-weight: 700; }
+.modal ul { padding-left: 20px; margin: 0 0 16px; }
+.modal li { margin: 0 0 8px; }
+.confetti { position: absolute; inset: 0; pointer-events: none; z-index: 99; }
+.rotate-hint { display: none; }
+@media (orientation: portrait) and (max-width: 900px) {
+  .game .rotate-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--soft); font-size: 13px; font-weight: 700; padding: 2px 0 4px; }
+}
+
+.popover.finishes { grid-template-columns: repeat(4, 84px); }
+.popover.finishes button { height: auto; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; border: 2px solid transparent; }
+.popover.finishes button.on { border-color: var(--accent); background: var(--accent-soft); }
+.popover.finishes small { font: 700 11.5px/1.1 "Nunito", sans-serif; color: var(--ink); }
+.status .btn.sm { vertical-align: middle; margin-left: 8px; }
+.status { height: auto; min-height: 28px; }
+.devpanel { position: absolute; left: 12px; bottom: 70px; z-index: 120; background: var(--paper); border: 2px dashed #c026d3; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+
+/* guidance: why a meld is invalid, meld handles, what the rack could make */
+.seg .why { position: absolute; left: 0; bottom: calc(100% + 3px); white-space: nowrap; font: 800 11px/1 "Nunito", sans-serif; color: #fff; background: var(--warn); padding: 4px 7px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,.25); z-index: 6; }
+.seg.pulse { animation: segpulse .9s ease-out; }
+@keyframes segpulse { 0% { box-shadow: 0 0 0 2px rgba(120,255,200,.9), 0 0 0 0 rgba(120,255,200,.7); } 100% { box-shadow: 0 0 0 2px rgba(150,255,200,.55), 0 0 0 16px rgba(120,255,200,0); } }
+.grip { position: absolute; width: 9px; border-radius: 5px; cursor: grab; pointer-events: auto; z-index: 6;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.75) 0 2px, transparent 2px 5px); opacity: .55; transition: opacity .15s; touch-action: none; }
+.grip:hover { opacity: 1; }
+.rack .seg.rackseg { box-shadow: 0 0 0 2px rgba(150,255,200,.5); background: rgba(150,255,200,.07); border-radius: 9px; }
+.rack .seg.rackseg.wrap { box-shadow: 0 0 0 2px rgba(255,200,60,.9); }
+.rack .seg.rackseg.wrap .tag { background: #ffd25a; }
+.rack .seg .tag { position: absolute; left: 6px; top: -9px; z-index: 6; font: 800 9.5px/1 "Nunito", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #0b3a2a; background: #9ff0cb; padding: 2px 5px; border-radius: 4px; }
+.tile.drawn { box-shadow: 0 0 0 3px var(--gold), 0 0 20px 4px rgba(255,200,60,.7) !important; }
+.status .sub.bad { color: var(--warn); }
+.modal.coach ol { padding-left: 22px; margin: 6px 0 14px; }
+.modal.coach li { margin: 0 0 12px; }
+.modal.coach li b { display: block; font-size: 16px; }
+.modal.coach li span { color: var(--soft); }
+
+/* above the tiles: rack meld buttons and the drop ghost */
+.over { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+.lay { position: absolute; pointer-events: auto; height: 20px; padding: 0 7px; border: 0; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px;
+  font: 800 10.5px/1 "Nunito", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #0b3a2a; background: #9ff0cb; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform .12s; }
+.lay:hover { transform: translateY(-2px) scale(1.05); }
+.lay.idle { cursor: default; opacity: .85; }
+.lay.wrap { background: #ffd25a; color: #3a2600; }
+.ghost { position: absolute; border-radius: 8px; border: 2px dashed rgba(255,255,255,.7); background: rgba(255,255,255,.08); transition: left .08s, top .08s, width .08s; }
+.ghost.ok { border: 2px solid rgba(120,255,200,.95); background: rgba(120,255,200,.15); box-shadow: 0 0 16px rgba(120,255,200,.5); }
+.ghost.bad { border-color: rgba(255,90,120,.9); background: rgba(255,90,120,.10); }
+.btn.on { color: var(--accent); border-color: var(--accent); }
+.chip .dots::after { content: ''; display: inline-block; width: 16px; text-align: left; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+/* the kitten */
+.kitty { position: absolute; z-index: 8; width: 84px; height: 73px; padding: 0; border: 0; background: none; cursor: pointer; transition: left .3s, top .3s; }
+.kitty svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 4px rgba(60,40,10,.25)); }
+.kitty .k-tail { transform-origin: 88px 86px; animation: swish 3s ease-in-out infinite; }
+@keyframes swish { 50% { transform: rotate(-14deg); } }
+.kitty .k-eyes-happy, .kitty .k-eyes-shut { display: none; }
+.kitty .k-eyes-open { transform-origin: 60px 42px; animation: blink 5s infinite; }
+@keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(.1); } }
+.kitty.happy .k-eyes-open, .kitty.sleep .k-eyes-open { display: none; }
+.kitty.happy .k-eyes-happy { display: inline; }
+.kitty.sleep:not(.happy) .k-eyes-shut { display: inline; }
+.kitty.sleep:not(.happy) .k-head { transform: translateY(4px) rotate(-6deg); transform-origin: 60px 60px; }
+.kitty .k-head { transition: transform .4s; }
+.kitty.happy .k-head { animation: nuzzle .5s ease-in-out 2; transform-origin: 60px 70px; }
+@keyframes nuzzle { 50% { transform: rotate(8deg); } }
+.kitty.roll svg { animation: rollover 1.1s cubic-bezier(.4,1.4,.5,1); transform-origin: 50% 60%; }
+@keyframes rollover { to { transform: rotate(360deg); } }
+.kitty.party svg { animation: hop .45s ease-in-out 6; }
+@keyframes hop { 50% { transform: translateY(-16px) rotate(-4deg); } }
+.kitty .k-zzz { position: absolute; right: -4px; top: -6px; font: 800 13px/1 "Nunito", sans-serif; color: #7a8aa0; display: none; pointer-events: none; }
+.kitty .k-zzz i, .kitty .k-zzz b { font-style: normal; font-weight: 800; position: relative; }
+.kitty .k-zzz i { top: -6px; font-size: 15px; } .kitty .k-zzz b { top: -13px; font-size: 18px; }
+.kitty.sleep:not(.happy) .k-zzz { display: block; animation: zzz 2.4s ease-in-out infinite; }
+@keyframes zzz { 50% { transform: translate(3px, -4px); opacity: .6; } }
+.k-heart { position: absolute; bottom: 60%; color: #ff6b8a; pointer-events: none; animation: heart 1.6s ease-out forwards; text-shadow: 0 1px 0 rgba(0,0,0,.1); }
+@keyframes heart { 0% { transform: translateY(0) scale(.4); opacity: 0; } 15% { opacity: 1; transform: translateY(-6px) scale(1.1); } 100% { transform: translateY(-60px) translateX(8px) scale(.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kitty .k-tail, .kitty .k-eyes-open, .kitty.roll svg, .kitty.party svg { animation: none; } }
+
+.tile .jk svg.kface { stroke: none !important; width: 100%; height: auto; }
+.tile.joker .jk { width: 74%; filter: drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 1px rgba(80,40,0,.25)); }
+
+/* Six tile finishes. The base `.tile` rules in styles.css are finish 1, Ivory.
+   A finish is chosen by a class on any ancestor: .ts-porcelain, .ts-jade, .ts-wood, .ts-glass, .ts-clay. */
+
+/* ---------- 2 · Porcelain: white glazed ceramic, gold hairline, enamel numbers ---------- */
+.ts-porcelain .tile {
+  background:
+    radial-gradient(90% 55% at 30% 6%, #ffffff 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(170deg, #ffffff 0%, #f4f6f9 50%, #e3e7ee 100%);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 0 -2px 3px rgba(110,125,150,.28),
+    0 calc(var(--tw) * .04) 0 #e7eaf0,
+    0 calc(var(--tw) * .07) 0 #cfd5df,
+    0 calc(var(--tw) * .095) 0 #aab3c2,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .18) rgba(15,20,35,.38);
+}
+.ts-porcelain .tile::before {
+  inset: 6%;
+  background: none;
+  border: 1px solid rgba(196,154,60,.7);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
+}
+.ts-porcelain .tile::after {
+  background:
+    radial-gradient(40% 22% at 30% 14%, rgba(255,255,255,.95), rgba(255,255,255,0) 100%),
+    linear-gradient(158deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 82%, rgba(170,185,210,.25) 100%);
+}
+.ts-porcelain .tile .n {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 55%, #fff) 0%, var(--tc) 30%, var(--tc) 70%, color-mix(in srgb, var(--tc) 75%, #000) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0.5px rgba(0,0,0,.18));
+}
+
+/* ---------- 3 · Two-tone: ivory face on a jade back, like a mahjong tile ---------- */
+.ts-jade .tile {
+  border-radius: calc(var(--tw) * .13);
+  background:
+    radial-gradient(130% 70% at 28% 8%, #fffefa 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(170deg, #fffcf2 0%, #f6edd8 60%, #eadcbc 100%);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 0 -2px 2px rgba(160,130,80,.3),
+    0 calc(var(--tw) * .035) 0 #e9dcbd,
+    0 calc(var(--tw) * .06) 0 #f7efdc,
+    0 calc(var(--tw) * .075) 0 #8fe0c9,
+    0 calc(var(--tw) * .11) 0 #2fb898,
+    0 calc(var(--tw) * .15) 0 #17967b,
+    0 calc(var(--tw) * .19) 0 #0e765f,
+    0 calc(var(--tw) * .215) 0 #0a5b49,
+    0 calc(var(--tw) * .26) calc(var(--tw) * .2) rgba(5,20,15,.5);
+}
+.ts-jade .tile::before { inset: 8% 9% 10%; }
+.ts-jade .tile .n {
+  font-weight: 800;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 65%, #000) 0%, var(--tc) 40%, color-mix(in srgb, var(--tc) 85%, #fff) 100%);
+  -webkit-background-clip: text; background-clip: text;
+}
+
+/* ---------- 4 · Maple: warm wood grain, carved numbers ---------- */
+.ts-wood .tile {
+  background:
+    radial-gradient(120% 60% at 30% 5%, rgba(255,240,210,.55) 0%, rgba(255,240,210,0) 60%),
+    repeating-linear-gradient(97deg, rgba(120,70,20,.0) 0px, rgba(120,70,20,.07) 2px, rgba(120,70,20,0) 5px, rgba(120,70,20,.05) 9px, rgba(120,70,20,0) 13px),
+    radial-gradient(160% 40% at 70% 60%, rgba(150,90,30,.12), rgba(150,90,30,0) 70%),
+    linear-gradient(170deg, #f3d9a8 0%, #e6c088 55%, #d6a76a 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,245,225,.9),
+    inset 0 -2px 2px rgba(110,60,15,.35),
+    0 calc(var(--tw) * .04) 0 #cf9d5e,
+    0 calc(var(--tw) * .07) 0 #b5814a,
+    0 calc(var(--tw) * .095) 0 #8f6232,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .17) rgba(40,20,5,.42);
+}
+.ts-wood .tile::before { background: none; box-shadow: none; }
+.ts-wood .tile::after { background: linear-gradient(120deg, rgba(255,250,235,.45) 0%, rgba(255,255,255,0) 32%); }
+.ts-wood .tile .n {
+  /* paint pressed into a carved groove: dark inner wall above, lit lip below */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 50%, #2a1505) 0%, color-mix(in srgb, var(--tc) 88%, #2a1505) 45%, var(--tc) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0 rgba(255,236,200,.85)) drop-shadow(0 -1px 0 rgba(70,35,5,.45));
+}
+.ts-wood .tile.c3 { --tc: #1d140c; }
+
+/* ---------- 5 · Glass: frosted acrylic with glowing numbers ---------- */
+.ts-glass .tile {
+  background:
+    radial-gradient(120% 60% at 25% 0%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 60%),
+    linear-gradient(165deg, rgba(255,255,255,.9) 0%, rgba(240,248,255,.8) 55%, rgba(220,236,248,.76) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2) brightness(1.15);
+  backdrop-filter: blur(10px) saturate(1.2) brightness(1.15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.85),
+    inset 0 2px 0 rgba(255,255,255,.95),
+    inset 0 -3px 6px rgba(120,170,210,.35),
+    0 calc(var(--tw) * .04) 0 rgba(220,238,250,.75),
+    0 calc(var(--tw) * .075) 0 rgba(160,200,225,.65),
+    0 calc(var(--tw) * .14) calc(var(--tw) * .22) rgba(10,40,60,.32);
+}
+.ts-glass .tile::before { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); }
+.ts-glass .tile::after {
+  background:
+    linear-gradient(150deg, rgba(255,255,255,.9) 0%, rgba(255,255,255,.15) 22%, rgba(255,255,255,0) 34%),
+    linear-gradient(330deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 18%);
+}
+.ts-glass .tile .n {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 60%, #fff) 0%, var(--tc) 55%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tc) 55%, transparent)) drop-shadow(0 1px 0 rgba(255,255,255,.8));
+}
+
+/* ---------- 6 · Clay: soft, pillowy, matte — numbers stand out in relief ---------- */
+.ts-clay .tile {
+  border-radius: calc(var(--tw) * .24);
+  background: radial-gradient(130% 120% at 32% 22%, #fffbf4 0%, #f5ebdc 52%, #e6d6be 100%);
+  box-shadow:
+    inset calc(var(--tw) * .05) calc(var(--tw) * .06) calc(var(--tw) * .12) rgba(255,255,255,.95),
+    inset calc(var(--tw) * -.05) calc(var(--tw) * -.07) calc(var(--tw) * .14) rgba(150,110,60,.28),
+    0 calc(var(--tw) * .06) calc(var(--tw) * .08) rgba(80,55,20,.22),
+    0 calc(var(--tw) * .16) calc(var(--tw) * .28) rgba(60,40,10,.28);
+}
+.ts-clay .tile::before, .ts-clay .tile::after { content: none; }
+.ts-clay .tile .n {
+  background: none;
+  -webkit-text-fill-color: var(--tc);
+  /* raised: lit from the upper left, casting a soft shadow down-right */
+  filter: drop-shadow(-1px -1px 0 rgba(255,255,255,.75)) drop-shadow(1px 2px 1.5px rgba(60,35,10,.35));
+}
+
+/* Friendly 3D (2026-09-30, Stefanie: "sweeter to me means 3D tiles and a friendly color scheme").
+   .friendly on <body> plus one palette — .pal-sage (default), .pal-sea, .pal-lilac — themes the table,
+   rack and chrome. The tile finish .ts-3d is a thick sculpted tile that leans back slightly. */
+
+.friendly {
+  --paper: #fffdf8;
+  --ink: #2b2d42;
+  --soft: #6e6a62;
+  --radius: 12px;
+  --t-red: #e5484d;
+  --t-blue: #2f6fde;
+  --t-orange: #f08c00;
+  --t-black: #2b2d42;
+  color-scheme: light;
+}
+.pal-sage {
+  --bg: #f6f1e7; --line: #e6dccb; --accent: #e4704f; --accent-soft: #fde6dd; --gold: #f2b134;
+  --felt1: #b6d8bc; --felt2: #85b591; --frame1: #d7a56d; --frame2: #a8733f;
+  --rack1: #e2b47c; --rack2: #b98149; --halo: rgba(228,112,79,.18);
+}
+.pal-sea {
+  --bg: #eef5f7; --line: #d7e4e8; --accent: #2f7fd6; --accent-soft: #dcebfb; --gold: #f2b134;
+  --felt1: #a9dcdc; --felt2: #66b4b8; --frame1: #dccab0; --frame2: #b39c7a;
+  --rack1: #e3d3b8; --rack2: #b9a07c; --halo: rgba(47,127,214,.16);
+}
+.pal-lilac {
+  --bg: #f6f2fa; --line: #e5dcef; --accent: #7a55d9; --accent-soft: #ece4fb; --gold: #f2b134;
+  --felt1: #cdbfe8; --felt2: #9f88cf; --frame1: #a7826a; --frame2: #765543;
+  --rack1: #b48d72; --rack2: #80604b; --halo: rgba(122,85,217,.16);
+}
+
+body.friendly {
+  background:
+    radial-gradient(70% 50% at 50% -10%, var(--halo), transparent 70%),
+    var(--bg);
+}
+.friendly .game { background: transparent; }
+.friendly .btn { border-radius: 12px; border: 1.5px solid var(--line); box-shadow: 0 2px 0 var(--line); font-weight: 800; }
+.friendly .btn:hover { background: #fff; }
+.friendly .btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--line); }
+.friendly .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 70%, #000); }
+.friendly .btn.primary:hover { background: color-mix(in srgb, var(--accent) 90%, #000); }
+.friendly .btn[disabled] { box-shadow: none; }
+.friendly .chip { border: 1.5px solid var(--line); box-shadow: 0 2px 0 var(--line); }
+.friendly .chip .sc { color: var(--accent); background: var(--accent-soft); }
+.friendly .chip.turn { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent), 0 2px 0 var(--line); }
+.friendly .card { border: 1.5px solid var(--line); border-radius: 18px; box-shadow: 0 3px 0 var(--line), 0 12px 30px rgba(80,60,30,.06); }
+.friendly .logo, .friendly .brand h1 { color: var(--ink); }
+.friendly .status.mine { color: var(--accent); }
+
+/* table: soft felt inside a rounded wooden frame */
+.friendly .board {
+  border-radius: 22px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 2px, transparent 2px 5px),
+    radial-gradient(110% 85% at 50% 15%, var(--felt1) 0%, var(--felt2) 100%);
+  box-shadow:
+    inset 0 0 0 6px var(--frame1),
+    inset 0 0 0 8px var(--frame2),
+    inset 0 2px 0 8px rgba(255,255,255,.25),
+    inset 0 10px 30px rgba(0,0,0,.18),
+    0 3px 0 var(--frame2),
+    0 16px 34px rgba(80,60,30,.20);
+}
+.friendly .board.mine::after { background-image: linear-gradient(to right, rgba(255,255,255,.13) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.13) 1px, transparent 1px); }
+.friendly .seg.ok { box-shadow: 0 0 0 2.5px rgba(255,255,255,.85); background: rgba(255,255,255,.14); }
+.friendly .seg.bad { box-shadow: 0 0 0 2.5px #e5484d; background: rgba(229,72,77,.14); }
+.friendly .seg.wrap.ok { box-shadow: 0 0 0 2.5px var(--gold), 0 0 16px color-mix(in srgb, var(--gold) 60%, transparent); }
+
+/* rack: a honey-wood shelf */
+.friendly .rack {
+  border-radius: 16px;
+  background:
+    repeating-linear-gradient(91deg, rgba(255,255,255,.05) 0 2px, rgba(0,0,0,.025) 2px 6px),
+    linear-gradient(180deg, var(--rack1) 0%, var(--rack2) 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -4px 0 rgba(0,0,0,.15), 0 4px 0 color-mix(in srgb, var(--rack2) 75%, #000), 0 14px 26px rgba(80,55,20,.25);
+}
+.friendly .rack .ledge { background: rgba(0,0,0,.16); box-shadow: 0 1px 0 rgba(255,255,255,.3); }
+.friendly .rack .seg.rackseg { box-shadow: 0 0 0 2.5px rgba(255,255,255,.85); background: rgba(255,255,255,.14); border-radius: 12px; }
+.friendly .lay { background: #fff; color: var(--ink); box-shadow: 0 2px 0 var(--line), 0 4px 10px rgba(0,0,0,.18); }
+.friendly .lay.wrap { background: var(--gold); color: #3a2600; }
+.friendly .ghost.ok { border-color: #fff; background: rgba(255,255,255,.22); box-shadow: 0 0 16px rgba(255,255,255,.6); }
+
+/* ------------------------------------------------- the 3D tile -- */
+.ts-3d .tile {
+  border-radius: calc(var(--tw) * .15);
+  background:
+    radial-gradient(120% 55% at 30% 0%, #ffffff 0%, rgba(255,255,255,0) 62%),
+    linear-gradient(176deg, #fffdf7 0%, #f8f1e2 62%, #ece0c7 100%);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 1px 0 0 rgba(255,255,255,.7),
+    inset 0 -1.5px 0 rgba(150,120,70,.28),
+    /* the thick front edge, darker toward the bottom */
+    0 calc(var(--tw) * .03) 0 #f1e8d4,
+    0 calc(var(--tw) * .06) 0 #e6d9bb,
+    0 calc(var(--tw) * .09) 0 #d9c8a4,
+    0 calc(var(--tw) * .12) 0 #c7b28a,
+    0 calc(var(--tw) * .145) 0 #b09b72,
+    /* contact shadow, then soft ambient light */
+    0 calc(var(--tw) * .17) calc(var(--tw) * .04) rgba(60,45,20,.35),
+    0 calc(var(--tw) * .24) calc(var(--tw) * .3) rgba(60,45,20,.22);
+  transform: var(--pos) perspective(calc(var(--tw) * 9)) rotateX(9deg);
+}
+.ts-3d .tile::before {
+  inset: 8% 9% 10%;
+  border-radius: calc(var(--tw) * .1);
+  background: linear-gradient(180deg, rgba(120,95,50,.08) 0%, rgba(255,255,255,.35) 70%);
+  box-shadow: inset 0 1.5px 2px rgba(120,90,40,.22), 0 1px 0 rgba(255,255,255,.85);
+}
+.ts-3d .tile::after { background: linear-gradient(120deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,0) 30%); }
+.ts-3d .tile .n {
+  font-family: "Baloo 2", "Nunito", sans-serif; font-weight: 800;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 72%, #000) 0%, var(--tc) 40%, color-mix(in srgb, var(--tc) 85%, #fff) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 -.5px 0 rgba(60,40,10,.35));
+}
+.ts-3d .tile.sel { transform: var(--pos) translateY(calc(var(--tw) * -.2)) perspective(calc(var(--tw) * 9)) rotateX(4deg) !important; }
+.ts-3d .tile.dragging { transform: var(--pos) perspective(calc(var(--tw) * 9)) rotateX(0deg); }
+
+</style>
+<style>
+  :root{
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57;
+    color-scheme:light;
+  }
+  :root:not([data-theme="light"]), :root[data-theme="dark"]{
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57; } }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 120px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  header{padding:30px 0 4px;}
+  h1{margin:0;font-size:21px;letter-spacing:-.01em;}
+  .sub{color:var(--soft);font-size:13px;margin:5px 0 0;max-width:78ch;}
+  .ledger{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:16px 0 6px;}
+  .ledger h2{margin:0 0 8px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ledger p,.ledger li{font-size:12.8px;margin:6px 0 0;}
+  .ledger ul,.ledger ol{margin:6px 0 0;padding-left:18px;}
+  .assume{border-color:var(--warn);} .assume h2{color:var(--warn);}
+  .key{border-color:var(--gone);} .key h2{color:var(--gone);}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:6px;}
+  .tbl th{text-align:left;font:700 10.5px/1.2 system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);padding:6px 8px;border-bottom:1px solid var(--line);}
+  .tbl td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .tbl td.f{font-weight:600;white-space:nowrap;}
+  .tbl td.n{font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tbl .new{color:var(--new);font-weight:700;}
+  .tblwrap{overflow-x:auto;}
+  code{font:11.5px ui-monospace,Menlo,monospace;background:var(--panel2);padding:0 4px;border-radius:4px;}
+  h2.part{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:38px 0 0;}
+  .partsub{color:var(--soft);font-size:12.5px;margin:4px 0 0;max-width:78ch;}
+  /* the stale list */
+  .stale{list-style:none;padding:0;margin:8px 0 0;}
+  .stale li{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 11px;margin:0 0 6px;font-size:12.3px;}
+  .stale .w{font-weight:600;}
+  .stale .src{color:var(--soft);font-size:11.5px;display:block;margin-top:2px;}
+  /* the questions */
+  h2.q{font-size:15.5px;margin:30px 0 2px;letter-spacing:-.01em;}
+  .ctx{font-size:12.5px;margin:4px 0 8px;max-width:80ch;background:var(--panel2);border-radius:8px;padding:8px 11px;}
+  .why{color:var(--soft);font-size:12.5px;margin:0 0 8px;max-width:78ch;}
+  label.opt{display:block;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 9px;cursor:pointer;}
+  label.opt:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;}
+  input[type=radio]{margin:0;accent-color:var(--accent);flex:none;position:relative;top:2px;}
+  input[type=radio]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .nm{font-size:13px;font-weight:600;}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ok);border:1px solid currentColor;border-radius:5px;padding:1px 5px;}
+  .rz{color:var(--soft);font-size:12px;margin:5px 0 0 25px;}
+  .catch{font-size:12px;margin:6px 0 0 25px;}
+  .catch b{color:var(--accent);font-weight:600;}
+  .bar-save{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+    padding:11px 16px calc(11px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .bar-save .cnt{font-size:12.5px;color:var(--soft);}
+  button.save{height:34px;padding:0 17px;border-radius:8px;border:0;background:var(--accent);color:#fff;font:600 13px/1 inherit;cursor:pointer;}
+  button.save[disabled]{background:#c9c9cd;cursor:default;}
+  button.save:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .said{font-size:12.5px;color:var(--ok);}
+  .said.warn{color:var(--gone);}
+  /* FEEDBACK FIELDS (her rule, 2026-09-28): a note under every question and one at the end — optional, always there */
+  textarea.note{display:block;width:100%;min-height:38px;margin:2px 0 0;padding:8px 11px;border:1px dashed var(--line);border-radius:9px;
+    background:var(--paper);font:12.5px/1.45 inherit;color:var(--ink);resize:vertical;}
+  textarea.note:focus{outline:none;border-style:solid;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  textarea.note:not(:placeholder-shown){border-style:solid;border-color:var(--accent);}
+  h2.q.notes{margin-top:36px;}
+  .fallback{max-width:960px;margin:14px auto 0;display:none;}
+  .fallback textarea{width:100%;height:70px;font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;}
+
+  .scene{margin:12px 0 2px 25px;max-width:600px;padding:16px;border-radius:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px;}
+  .scene .kitty{position:absolute;pointer-events:none;z-index:1;}
+  .scene .btn{height:34px;}
+  @media (max-width:600px){ .scene{margin-left:0;} }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Rollover — the friendly color scheme</h1>
+    <p class="sub">You said sweeter means 3D tiles and a friendly color scheme, and asked for some kitten love. The game now has thick, sculpted 3D tiles that lean back slightly, a kitten that sits on your rack, and a kitten as the joker. Below are three friendly color schemes, drawn live with the game’s own code. The game already uses the first one until you pick.</p>
+  </header>
+
+  <div class="ledger assume">
+    <h2>The one rule this rests on — worth a yes or no first</h2>
+    <p><b>Only the colors around the tiles change.</b> The 3D tile, the four number colors (coral, blue, marigold, charcoal) and the kitten are the same in all three schemes. Neon and candy stay available in the game’s palette menu for anyone who wants them.</p>
+  </div>
+
+  <div class="ledger">
+    <h2>Where it goes</h2>
+    <p>The whole game screen: the page around the table, the table felt and its wooden frame, the rack, and the main buttons. The tiles and the kitten stay put.</p>
+  </div>
+
+  <h2 class="q">1. Which color scheme should the game use?</h2>
+  <p class="why">Only about the colors of the table, rack, page and buttons — not the tiles.</p>
+  <label class="opt"><div class="top"><input type="radio" name="palette" value="1"><span class="nm">1. Sunday morning</span><span class="badge">recommended</span></div>
+    <p class="rz">Warm cream around a soft sage felt, a honey-wood rack, coral buttons. Cozy, like a kitchen table.</p><p class="catch"><b>Catch:</b> The calmest of the three — if you want more color on screen, it is the quietest.</p><div class="scene friendly pal-sage ts-3d">
+      <div class="board" style="width:auto;height:auto;padding:24px 22px 32px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      <div style="position:relative">
+        <div class="kitty" style="left:auto;right:14px;top:-58px;width:72px;height:62px">
+<svg viewBox="0 0 120 104" aria-hidden="true">
+  <g class="k-tail"><path d="M88 86 C112 86 116 62 104 50" fill="none" stroke="#e8914a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M104 50 C101 46 98 45 96 46" fill="none" stroke="#c96f2c" stroke-width="10" stroke-linecap="round"/></g>
+  <ellipse cx="60" cy="80" rx="33" ry="22" fill="#f2a35c"/>
+  <path d="M44 66 q4 6 0 12 M76 66 q-4 6 0 12" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="47" cy="99" rx="9" ry="5.5" fill="#fff4e3"/><ellipse cx="73" cy="99" rx="9" ry="5.5" fill="#fff4e3"/>
+  <g class="k-head">
+    <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+    <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+    <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+    <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+    <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".55"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".55"/>
+    <g class="k-eyes-open"><ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+      <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/></g>
+    <g class="k-eyes-happy" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 44 q5 -7 10 0"/><path d="M66 44 q5 -7 10 0"/></g>
+    <g class="k-eyes-shut" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 43 q5 4 10 0"/><path d="M66 43 q5 4 10 0"/></g>
+    <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+    <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M30 50 l12 2 M30 57 l12 -1 M90 50 l-12 2 M90 57 l-12 -1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>
+  </g>
+</svg>
+<span class="k-zzz">z<i>z</i><b>z</b></span></div>
+        <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><span class="btn" style="pointer-events:none">Draw a tile</span><span class="btn primary" style="pointer-events:none">Done</span></div>
+    </div></label><label class="opt"><div class="top"><input type="radio" name="palette" value="2"><span class="nm">2. Seaside</span></div>
+    <p class="rz">Cool, airy light blue with a teal felt and driftwood rack, ocean-blue buttons.</p><p class="catch"><b>Catch:</b> Cooler and fresher; the blue tiles sit closest to the table color.</p><div class="scene friendly pal-sea ts-3d">
+      <div class="board" style="width:auto;height:auto;padding:24px 22px 32px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      <div style="position:relative">
+        <div class="kitty" style="left:auto;right:14px;top:-58px;width:72px;height:62px">
+<svg viewBox="0 0 120 104" aria-hidden="true">
+  <g class="k-tail"><path d="M88 86 C112 86 116 62 104 50" fill="none" stroke="#e8914a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M104 50 C101 46 98 45 96 46" fill="none" stroke="#c96f2c" stroke-width="10" stroke-linecap="round"/></g>
+  <ellipse cx="60" cy="80" rx="33" ry="22" fill="#f2a35c"/>
+  <path d="M44 66 q4 6 0 12 M76 66 q-4 6 0 12" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="47" cy="99" rx="9" ry="5.5" fill="#fff4e3"/><ellipse cx="73" cy="99" rx="9" ry="5.5" fill="#fff4e3"/>
+  <g class="k-head">
+    <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+    <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+    <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+    <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+    <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".55"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".55"/>
+    <g class="k-eyes-open"><ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+      <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/></g>
+    <g class="k-eyes-happy" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 44 q5 -7 10 0"/><path d="M66 44 q5 -7 10 0"/></g>
+    <g class="k-eyes-shut" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 43 q5 4 10 0"/><path d="M66 43 q5 4 10 0"/></g>
+    <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+    <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M30 50 l12 2 M30 57 l12 -1 M90 50 l-12 2 M90 57 l-12 -1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>
+  </g>
+</svg>
+<span class="k-zzz">z<i>z</i><b>z</b></span></div>
+        <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><span class="btn" style="pointer-events:none">Draw a tile</span><span class="btn primary" style="pointer-events:none">Done</span></div>
+    </div></label><label class="opt"><div class="top"><input type="radio" name="palette" value="3"><span class="nm">3. Lilac evening</span></div>
+    <p class="rz">Soft lilac around a lavender felt with a walnut rack, violet buttons.</p><p class="catch"><b>Catch:</b> The most unusual — playful, but the darker walnut rack makes the scene heavier.</p><div class="scene friendly pal-lilac ts-3d">
+      <div class="board" style="width:auto;height:auto;padding:24px 22px 32px;display:flex;gap:7px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:54px;--th:71px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      <div style="position:relative">
+        <div class="kitty" style="left:auto;right:14px;top:-58px;width:72px;height:62px">
+<svg viewBox="0 0 120 104" aria-hidden="true">
+  <g class="k-tail"><path d="M88 86 C112 86 116 62 104 50" fill="none" stroke="#e8914a" stroke-width="10" stroke-linecap="round"/>
+    <path d="M104 50 C101 46 98 45 96 46" fill="none" stroke="#c96f2c" stroke-width="10" stroke-linecap="round"/></g>
+  <ellipse cx="60" cy="80" rx="33" ry="22" fill="#f2a35c"/>
+  <path d="M44 66 q4 6 0 12 M76 66 q-4 6 0 12" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="47" cy="99" rx="9" ry="5.5" fill="#fff4e3"/><ellipse cx="73" cy="99" rx="9" ry="5.5" fill="#fff4e3"/>
+  <g class="k-head">
+    <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+    <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+    <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+    <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+    <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".55"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".55"/>
+    <g class="k-eyes-open"><ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+      <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/></g>
+    <g class="k-eyes-happy" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 44 q5 -7 10 0"/><path d="M66 44 q5 -7 10 0"/></g>
+    <g class="k-eyes-shut" stroke="#3b2a20" stroke-width="3" fill="none" stroke-linecap="round"><path d="M44 43 q5 4 10 0"/><path d="M66 43 q5 4 10 0"/></g>
+    <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+    <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M30 50 l12 2 M30 57 l12 -1 M90 50 l-12 2 M90 57 l-12 -1" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>
+  </g>
+</svg>
+<span class="k-zzz">z<i>z</i><b>z</b></span></div>
+        <div class="rack" style="width:auto;height:auto;padding:12px 16px 17px;display:flex;gap:5px;flex-wrap:wrap"><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">12</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">13</span></span><span class="tile c0" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">1</span><span class="st">★</span></span><span class="tile c1" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c2" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c3" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="n">7</span></span><span class="tile c0 joker" style="position:relative;--tw:40px;--th:53px;--pos:none;cursor:default"><span class="jk"><svg class="kface" viewBox="20 2 80 74" aria-hidden="true">
+  <path d="M35 34 L39 8 L56 24 Z" fill="#f2a35c"/><path d="M40 28 L42 15 L51 24 Z" fill="#ffb7b2"/>
+  <path d="M85 34 L81 8 L64 24 Z" fill="#f2a35c"/><path d="M80 28 L78 15 L69 24 Z" fill="#ffb7b2"/>
+  <circle cx="60" cy="44" r="27" fill="#f2a35c"/>
+  <path d="M52 19 q2 6 0 10 M60 17 v11 M68 19 q-2 6 0 10" stroke="#d9802f" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="60" cy="55" rx="15" ry="11" fill="#fff4e3"/>
+  <circle cx="41" cy="52" r="5" fill="#ff9f9a" opacity=".6"/><circle cx="79" cy="52" r="5" fill="#ff9f9a" opacity=".6"/>
+  <ellipse cx="49" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/><ellipse cx="71" cy="42" rx="4.6" ry="5.8" fill="#3b2a20"/>
+  <circle cx="50.6" cy="40" r="1.7" fill="#fff"/><circle cx="72.6" cy="40" r="1.7" fill="#fff"/>
+  <path d="M57 50 h6 l-3 3.5 z" fill="#ff8a8a"/>
+  <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg></span></span></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><span class="btn" style="pointer-events:none">Draw a tile</span><span class="btn primary" style="pointer-events:none">Done</span></div>
+    </div></label>
+  <textarea class="note" data-note="palette" placeholder="Anything to add — e.g. “Seaside, but with a warmer rack”? (optional)" aria-label="Your note on question 1"></textarea>
+
+  <h2 class="q">2. How much kitten?</h2>
+  <p class="why">Only about the kitten — the rest of the game is the same either way.</p>
+  <label class="opt"><div class="top"><input type="radio" name="kitten" value="1"><span class="nm">The kitten on the rack, and a kitten joker</span><span class="badge">recommended</span></div>
+    <p class="rz">The kitten naps while others play, wakes up on your turn, sends hearts for a good meld, rolls over on a rollover run, purrs when you tap it. The joker tile is a kitten face.</p><p class="catch"><b>Catch:</b> it sits on the rack’s top-right corner, over a sliver of the table.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="kitten" value="2"><span class="nm">Only the kitten joker</span></div>
+    <p class="rz">No kitten on the rack; the joker tile stays a kitten face.</p><p class="catch"><b>Catch:</b> the game loses its little companion and the reactions it shows.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="kitten" value="3"><span class="nm">No kitten</span></div>
+    <p class="rz">A crown joker and no mascot.</p><p class="catch"><b>Catch:</b> less warmth; the game feels more like the classic.</p></label>
+  <textarea class="note" data-note="kitten" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 2"></textarea>
+
+  <h2 class="q notes">Anything else?</h2>
+  <p class="why">Whatever the questions did not ask — optional.</p>
+  <textarea class="note" data-note="general" placeholder="Your note (optional)" aria-label="Anything else" style="min-height:70px"></textarea>
+</div>
+
+<div class="fallback" id="fb">
+  <p class="said warn" style="margin:0 0 6px">If saving does not work, copy this line and send it to me:</p>
+  <textarea id="fbt" readonly aria-label="Your choices, as text"></textarea>
+</div>
+<div class="bar-save">
+  <span class="cnt" id="cnt">0 of 2 answered</span>
+  <button type="button" class="save" id="save" disabled>Pick 2 more</button>
+  <span class="said" id="said" role="status"></span>
+</div>
+
+<script>
+  /* ⚠️ the values are positions: reordering or inserting an option after
+     publishing changes what a saved answer means — change the question's
+     name instead */
+  const QS = ['palette', 'kitten'];   /* one name per question — a NAME, never a position */
+  const KEY = 'rollover-colors-picks';
+  const DOC = 'picks/rollover-colors';
+  let db = null;
+  const picks = () => { const o = {}; for (const q of QS) { const h = document.querySelector('input[name="' + q + '"]:checked'); if (h) o[q] = Number(h.value); } return o; };
+  /* the feedback fields — saved beside the picks, by question name ("general" for the last one) */
+  const notes = () => { const o = {}; for (const t of document.querySelectorAll('textarea.note[data-note]')) { const v = t.value.trim(); if (v) o[t.dataset.note] = v; } return o; };
+  const mirror = () => { const all = { picks: picks(), notes: notes() }; try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {} const t = document.getElementById('fbt'); if (t) t.value = JSON.stringify(all); };
+  const paint = () => {
+    const n = Object.keys(picks()).length, left = QS.length - n, b = document.getElementById('save');
+    const said = Object.keys(notes()).length;
+    b.disabled = n === 0 && !said; b.textContent = left > 0 ? (n === 0 && said ? 'Save my notes' : 'Pick ' + left + ' more') : 'Save my choices';
+    document.getElementById('cnt').textContent = n + ' of ' + QS.length + ' answered'; mirror();
+  };
+  const restore = (o) => { if (!o) return; for (const [q, v] of Object.entries(o)) { const h = document.querySelector('input[name="' + q + '"][value="' + v + '"]'); if (h) h.checked = true; } };
+  const restoreNotes = (o) => { if (!o) return; for (const [q, v] of Object.entries(o)) { const t = document.querySelector('textarea.note[data-note="' + q + '"]'); if (t && !t.value) t.value = v; } };
+  document.addEventListener('change', (e) => { if (e.target.name) { document.getElementById('said').textContent = ''; paint(); } });
+  document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('textarea.note')) { document.getElementById('said').textContent = ''; paint(); } });
+  document.getElementById('save').addEventListener('click', async () => {
+    const said = document.getElementById('said'); said.classList.remove('warn'); mirror();
+    if (!db) { said.classList.add('warn'); said.textContent = 'Could not reach the saved store — your picks are kept in this browser; copy the line below to me.'; document.getElementById('fb').style.display = 'block'; return; }
+    try {
+      await db.doc(DOC).set({ picks: picks(), notes: notes(), savedAt: new Date().toISOString() });
+      const back = await db.doc(DOC).get();
+      if (!back.exists) throw new Error('not there');
+      said.textContent = 'Saved — Claude can read these.';
+    } catch (err) {
+      said.classList.add('warn'); said.textContent = 'Saving did not go through — kept in this browser; copy the line below to me.';
+      document.getElementById('fb').style.display = 'block';
+    }
+  });
+  (async () => {
+    try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.picks) { restore(m.picks); restoreNotes(m.notes); } else restore(m); } catch (e) {}
+    paint();
+    try { db = await window.claude.use('db'); } catch (e) { db = null; }
+    if (!db) { document.getElementById('fb').style.display = 'block'; return; }
+    try { const d = await db.doc(DOC).get(); const data = d && d.exists ? d.data() : null; if (data) { restore(data.picks || null); restoreNotes(data.notes || null); paint(); } } catch (e) {}
+  })();
+</script>
