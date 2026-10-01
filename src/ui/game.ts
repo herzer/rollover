@@ -1,7 +1,7 @@
 // The game screen: felt table, wooden rack, and every tile as one element in a layer
 // above both — so a tile glides from the rack to the table instead of jumping.
 
-import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, segments, type Placed } from '../engine/board';
+import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, findSpot, segments, type Placed } from '../engine/board';
 import { meldProblem } from '../engine/melds';
 import { chooseMove, rackMelds, type Move } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
@@ -10,7 +10,7 @@ import type { Client, ClientEvent } from '../net/client';
 import { REACTIONS } from '../net/protocol';
 import { t, lang, setLang } from './i18n';
 import { icon } from './icons';
-import { sfx, isMuted, setMuted } from './sound';
+import { sfx, isMuted, setMuted, musicOn, setMusic, resumeMusicOnGesture } from './sound';
 import { confetti } from './fx';
 
 const RACK_ROWS = 2;
@@ -64,6 +64,8 @@ export class GameView {
   private boardEl!: HTMLElement;
   private rackEl!: HTMLElement;
   private layer!: HTMLElement;
+  /** Above the tiles: rack meld labels and the drop ghost. */
+  private overlay!: HTMLElement;
   private tileEls = new Map<number, HTMLElement>();
   private draft: Placed[] | null = null;
   private draftKey = '';
@@ -105,6 +107,7 @@ export class GameView {
     this.loadRack();
     this.render();
     if (import.meta.env.DEV) window.addEventListener('keydown', this.onDevKey);
+    resumeMusicOnGesture();
   }
 
   // ⌘⇧D / Ctrl+Shift+D — developer panel, dev builds only (never on a shipping surface)
@@ -169,6 +172,7 @@ export class GameView {
         <button class="btn icon" data-act="help" title="${esc(t().helpTip)}">${icon('help')}</button>
         <button class="btn icon" data-act="lang" title="${esc(t().langTip)}">${lang() === 'en' ? 'DE' : 'EN'}</button>
         <button class="btn icon" data-act="tiles" title="${esc(t().tilesTip)}">${icon('palette')}</button>
+        <button class="btn icon${musicOn() ? ' on' : ''}" data-act="music" title="${esc(t().musicTip)}">${icon('music')}</button>
         <button class="btn icon" data-act="sound" title="${esc(t().soundTip)}">${icon(isMuted() ? 'mute' : 'sound')}</button>
         <button class="btn icon" data-act="leave" title="${esc(t().leaveTip)}">${icon('leave')}</button>
       </header>
@@ -190,17 +194,21 @@ export class GameView {
         <button class="btn primary" data-act="done" title="${esc(t().doneTip)}">${icon('check')}${t().done}</button>
       </div>
       <div class="tiles" data-ref="layer"></div>
+      <div class="over" data-ref="over"></div>
     `;
     const ref = (n: string) => this.el.querySelector(`[data-ref="${n}"]`) as HTMLElement;
     this.boardEl = ref('board');
     this.rackEl = ref('rack');
     this.layer = ref('layer');
+    this.overlay = ref('over');
     this.el.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
       if (b && !(b as HTMLButtonElement).disabled) this.act(b.dataset.act!, b);
     });
     this.layer.addEventListener('pointerdown', this.onDown);
     this.boardEl.addEventListener('pointerdown', this.onGripDown);
+    this.boardEl.addEventListener('click', this.onAreaTap);
+    this.rackEl.addEventListener('click', this.onAreaTap);
     this.tileEls.clear();
     requestAnimationFrame(() => { this.measure(); this.render(); });
   }
@@ -419,14 +427,24 @@ export class GameView {
       return `<div class="seg ${g.eval.ok ? 'ok' : 'bad'}${g.eval.wraps ? ' wrap' : ''}${pulse}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.tw + this.gap) - this.gap + 6}px;height:${this.th + 6}px">${why ? `<span class="why">${esc(t().problem[why])}</span>` : ''}</div>${grip}`;
     }).join('') : '';
     if (lit) sfx.meld();
-    // runs and groups sitting together on the rack glow, so you can see what you could lay
+    // runs and groups sitting together on the rack glow, so you can see what you could lay — one tap lays them
     const rackSegs = checkBoard([...this.rackPos].filter(([id]) => this.rackIds().includes(id)).map(([id, p]) => ({ id, r: p.r, c: p.c })), s.tiles, s.rules).segs;
     const ro = this.origin('rack');
-    this.rackEl.innerHTML += rackSegs.filter((g) => g.eval.ok).map((g) => {
+    const okSegs = rackSegs.filter((g) => g.eval.ok);
+    this.rackEl.innerHTML += okSegs.map((g) => {
       const xy = this.cellXY('rack', g.r, g.c);
       const x = xy.x - (ro.box.left - ro.host.left) - this.rackEl.clientLeft - 3, y = xy.y - (ro.box.top - ro.host.top) - this.rackEl.clientTop - 3;
-      return `<div class="seg ok rackseg${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.rtw + this.gap) - this.gap + 6}px;height:${this.rth + 6}px"><span class="tag">${g.eval.kind === 'group' ? esc(t().kindGroup) : esc(t().kindRun)} · ${g.eval.value}</span></div>`;
+      return `<div class="seg ok rackseg${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.rtw + this.gap) - this.gap + 6}px;height:${this.rth + 6}px"></div>`;
     }).join('');
+    if (!this.drag?.active) {
+      this.overlay.innerHTML = okSegs.map((g) => {
+        const xy = this.cellXY('rack', g.r, g.c);
+        const label = `${g.eval.kind === 'group' ? t().kindGroup : t().kindRun} · ${g.eval.value}`;
+        return mine
+          ? `<button class="lay${g.eval.wraps ? ' wrap' : ''}" data-act="lay" data-ids="${g.ids.join(',')}" title="${esc(t().layTip)}" style="left:${xy.x}px;top:${xy.y - 11}px">${esc(label)} ${icon('arrowUp', 11, 3)}</button>`
+          : `<span class="lay idle${g.eval.wraps ? ' wrap' : ''}" style="left:${xy.x}px;top:${xy.y - 11}px">${esc(label)}</span>`;
+      }).join('');
+    }
 
     // tiles
     const want = new Map<number, { x: number; y: number; area: Area }>();
@@ -491,7 +509,7 @@ export class GameView {
       const offline = p.kind === 'human' && seatInfo && !seatInfo.online;
       const label = p.kind === 'ai' ? icon('bot', 15) : '';
       return `<div class="chip${s.turn === i && s.phase === 'playing' ? ' turn' : ''}" data-seat="${i}" title="${esc(p.name)} — ${esc(tt.tilesCount(p.rack.length))}">
-        ${label}<span>${esc(p.name)}${i === this.seat ? ` <span class="cnt">(${tt.you})</span>` : ''}</span>
+        ${label}<span>${esc(p.name)}${i === this.seat ? ` <span class="cnt">(${tt.you})</span>` : ''}${p.kind === 'ai' && s.turn === i && s.phase === 'playing' ? '<span class="dots"></span>' : ''}</span>
         <span class="cnt">${p.rack.length}</span>${p.score ? `<span class="sc">${p.score > 0 ? '+' : ''}${p.score}</span>` : ''}
         ${offline ? `<span class="off">${icon('wifiOff', 13)}</span>` : ''}</div>`;
     }).join('');
@@ -562,6 +580,8 @@ export class GameView {
       case 'sound': setMuted(!isMuted()); b.innerHTML = icon(isMuted() ? 'mute' : 'sound'); return;
       case 'react': this.reactionPicker(b); return;
       case 'tiles': this.finishPicker(b); return;
+      case 'lay': this.layMeld((b.dataset.ids ?? '').split(',').map(Number).filter((n) => !Number.isNaN(n))); return;
+      case 'music': setMusic(!musicOn()); b.classList.toggle('on', musicOn()); return;
       case 'playFor': { const id = s?.players[s.turn].id; if (id) this.client.host?.playFor(id); return; }
       case 'sortRuns': this.sortRack('runs'); return;
       case 'sortMelds': this.sortRack('melds'); return;
@@ -678,6 +698,17 @@ export class GameView {
     e.preventDefault();
   };
 
+  /** Tap tiles, then tap an empty spot: they move there — no dragging needed. */
+  private onAreaTap = (e: MouseEvent) => {
+    if (!this.selected.size || (e.target as HTMLElement).closest('.grip')) return;
+    const tgt = this.hitTest(e.clientX, e.clientY);
+    if (!tgt) return;
+    const ids = this.orderedSelection().filter((id) => this.displayBoard().some((p) => p.id === id) ? this.myTurn : this.myRack.includes(id));
+    if (!ids.length) return;
+    if (this.drop(tgt.area, tgt.r, tgt.c, ids)) { sfx.place(); this.selected.clear(); }
+    this.render();
+  };
+
   /** The handle on the left of a meld picks up the whole meld. */
   private onGripDown = (e: PointerEvent) => {
     const grip = (e.target as HTMLElement).closest('.grip') as HTMLElement | null;
@@ -714,6 +745,8 @@ export class GameView {
       const y = e.clientY - host.top - d.grabY;
       el.style.setProperty('--pos', `translate(${x}px, ${y}px) rotate(${(i - idx) * 0.6 + 1.5}deg) scale(1.06)`);
     });
+    const tgt = this.hitTest(e.clientX - d.grabX - idx * (d.w + this.gap) + d.w / 2, e.clientY - d.grabY + d.h / 2);
+    this.showGhost(tgt?.area ?? null, tgt?.r ?? 0, tgt?.c ?? 0, d.group);
   };
 
   private onUp = (e: PointerEvent) => {
@@ -722,6 +755,7 @@ export class GameView {
     this.drag = null;
     if (!d.active) { if (d.forced) this.render(); else this.tapped(d.id); return; }
     for (const id of d.group) this.tileEls.get(id)?.classList.remove('dragging');
+    this.showGhost(null, 0, 0, []);
     const idx = d.group.indexOf(d.id);
     // where the first tile of the line lands
     const left = e.clientX - d.grabX - idx * (d.w + this.gap) + d.w / 2;
@@ -769,29 +803,24 @@ export class GameView {
   }
 
   /** Puts `ids` in a line starting at (r, c), nudging neighbors aside when needed. */
-  private drop(area: Area, r: number, c: number, ids: number[]): boolean {
+  /** Works out where `ids` would land at (r, c), nudging neighbors aside — without changing anything. */
+  private planDrop(area: Area, r: number, c: number, ids: number[]): { ok: true; c: number; moves: Map<number, number> } | { ok: false; why?: string } {
     const s = this.s!;
     const tableAtStart = new Set(s.board.map((p) => p.id));
-    if (area === 'board' && !this.myTurn) return false;
-    if (area === 'rack' && ids.some((id) => tableAtStart.has(id))) {
-      this.toast(t().errors['tiles-missing'], true);
-      return false;
-    }
-    if (area === 'board' && !this.draft) return false;
+    if (area === 'board' && (!this.myTurn || !this.draft)) return { ok: false };
+    if (area === 'rack' && ids.some((id) => tableAtStart.has(id))) return { ok: false, why: t().errors['tiles-missing'] };
     const cols = area === 'board' ? BOARD_COLS : this.rackCols;
     const n = ids.length;
-    if (n > cols) return false;
-    c = Math.min(c, cols - n);
+    if (n > cols) return { ok: false };
+    c = Math.max(0, Math.min(c, cols - n));
     const moving = new Set(ids);
-
-    // current occupancy of the target area without the moving tiles
-    const cells = new Map<number, number>(); // cellKey -> id
+    const cells = new Map<number, number>(); // cellKey -> id, without the moving tiles
     if (area === 'board') for (const p of this.draft!) { if (!moving.has(p.id)) cells.set(cellKey(p.r, p.c), p.id); }
     else for (const [id, p] of this.rackPos) { if (!moving.has(id)) cells.set(cellKey(p.r, p.c), id); }
     const free = (cc: number) => !cells.has(cellKey(r, cc));
 
     // tiles in this row from c onward make room; melds that were apart stay apart
-    const moves = new Map<number, number>(); // id -> new column
+    const moves = new Map<number, number>();
     let ok = true;
     for (let k = 0; k < n; k++) if (!free(c + k)) ok = false;
     if (!ok) {
@@ -810,22 +839,33 @@ export class GameView {
         prevOld = x.col; prevNew = col;
       }
     }
-    if (!ok) return false;
+    if (!ok) return { ok: false };
     // before your opening the table must stay exactly as it is, so its tiles are never pushed aside
     if (area === 'board' && !s.players[this.seat].opened && [...moves.keys()].some((id) => tableAtStart.has(id))) {
-      this.toast(t().errors['opening-touched-table'], true);
-      return false;
+      return { ok: false, why: t().errors['opening-touched-table'] };
     }
+    return { ok: true, c, moves };
+  }
 
+  /** The table as it would be after the planned drop. */
+  private boardAfter(r: number, c: number, ids: number[], moves: Map<number, number>): Placed[] {
+    const moving = new Set(ids);
+    const board = this.draft!.filter((p) => !moving.has(p.id)).map((p) => (moves.has(p.id) ? { ...p, c: moves.get(p.id)! } : p));
+    ids.forEach((id, k) => board.push({ id, r, c: c + k }));
+    return board;
+  }
+
+  private drop(area: Area, r: number, c: number, ids: number[]): boolean {
+    const plan = this.planDrop(area, r, c, ids);
+    if (!plan.ok) { if (plan.why) this.toast(plan.why, true); return false; }
+    const moving = new Set(ids);
     if (area === 'board') {
-      const board = this.draft!.filter((p) => !moving.has(p.id)).map((p) => (moves.has(p.id) ? { ...p, c: moves.get(p.id)! } : p));
-      ids.forEach((id, k) => board.push({ id, r, c: c + k }));
-      this.draft = board;
+      this.draft = this.boardAfter(r, plan.c, ids, plan.moves);
       for (const id of ids) this.rackPos.delete(id);
       this.sendDraft();
     } else {
-      for (const [id, col] of moves) this.rackPos.set(id, { r, c: col });
-      ids.forEach((id, k) => this.rackPos.set(id, { r, c: c + k }));
+      for (const [id, col] of plan.moves) this.rackPos.set(id, { r, c: col });
+      ids.forEach((id, k) => this.rackPos.set(id, { r, c: plan.c + k }));
       if (this.draft && ids.some((id) => this.draft!.some((p) => p.id === id))) {
         this.draft = this.draft.filter((p) => !moving.has(p.id));
         this.sendDraft();
@@ -833,6 +873,44 @@ export class GameView {
       this.saveRack();
     }
     return true;
+  }
+
+  /** While dragging: a ghost where the tiles will land, glowing if the meld they make is valid. */
+  private showGhost(area: Area | null, r: number, c: number, ids: number[]) {
+    const g = this.overlay.querySelector('.ghost') as HTMLElement | null;
+    if (!area) { g?.remove(); return; }
+    const plan = this.planDrop(area, r, c, ids);
+    if (!plan.ok) { g?.remove(); return; }
+    let state = 'neutral';
+    if (area === 'board') {
+      const s = this.s!;
+      const seg = segments(this.boardAfter(r, plan.c, ids, plan.moves)).find((x) => x.ids.includes(ids[0]));
+      if (seg) state = checkBoard(seg.ids.map((id, i) => ({ id, r: 0, c: i })), s.tiles, s.rules).ok ? 'ok' : seg.ids.length < 3 ? 'neutral' : 'bad';
+    }
+    const z = this.size(area);
+    const xy = this.cellXY(area, r, plan.c);
+    const el = g ?? document.createElement('div');
+    el.className = `ghost ${state}`;
+    el.style.cssText = `left:${xy.x - 2}px;top:${xy.y - 2}px;width:${ids.length * (z.w + this.gap) - this.gap + 4}px;height:${z.h + 4}px`;
+    if (!g) this.overlay.appendChild(el);
+  }
+
+  /** One tap on a rack meld's label lays the whole meld on the table. */
+  private layMeld(ids: number[]) {
+    const s = this.s;
+    if (!s || !this.myTurn || !this.draft) return;
+    const occupied = new Set(this.draft.map((p) => cellKey(p.r, p.c)));
+    const spot = findSpot(occupied, ids.length);
+    if (!spot) return;
+    if (!this.drop('board', spot.r, spot.c, ids)) return;
+    sfx.place();
+    this.render();
+    for (const id of ids) {
+      const el = this.tileEls.get(id);
+      if (!el) continue;
+      el.classList.remove('boing'); void el.offsetWidth; el.classList.add('boing');
+      setTimeout(() => el.classList.remove('boing'), 520);
+    }
   }
 
   private tapped(id: number) {

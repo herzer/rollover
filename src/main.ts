@@ -115,7 +115,7 @@ function home(message = '') {
 function connect(c: Client) {
   leaveClient();
   client = c;
-  try { if (c.isHost && c.code) sessionStorage.setItem('rollover.hosting', '1'); } catch { /* storage blocked */ }
+  try { if (c.isHost) sessionStorage.setItem('rollover.hosting', '1'); } catch { /* storage blocked */ }
   offClient = c.on((e) => { if (e.t === 'update') route(); });
   if (c.code && c.isHost) history.replaceState(null, '', location.pathname + location.search);
   route();
@@ -238,7 +238,7 @@ function boot() {
   const saved = Host.load();
   let hosting = false;
   try { hosting = sessionStorage.getItem('rollover.hosting') === '1'; } catch { /* storage blocked */ }
-  if (!code && hosting && saved?.lobby.code) { connect(Client.host(saved.lobby.seats[0]?.name ?? name, saved.lobby.code, saved)); return; }
+  if (!code && hosting && saved) { connect(Client.host(saved.lobby.seats[0]?.name ?? name, saved.lobby.code, saved)); return; }
   if (code && name && knownGame(code)) { connect(Client.join(code, name, new URLSearchParams(location.search).has('fresh'))); return; }
   home();
 }

@@ -6,6 +6,7 @@ let muted = (() => { try { return localStorage.getItem('rollover.muted') === '1'
 export const isMuted = () => muted;
 export function setMuted(m: boolean) {
   muted = m;
+  if (m) stopMusic(); else if (musicPref) startMusic();
   try { localStorage.setItem('rollover.muted', m ? '1' : '0'); } catch { /* storage blocked */ }
 }
 
@@ -66,3 +67,73 @@ export const sfx = {
   react: () => tone(990, 0.1, 'sine', 0.06),
   meld: () => { tone(784, 0.12, 'sine', 0.08); tone(1175, 0.22, 'sine', 0.08, 0.08); },
 };
+
+// ---- background music: a slow, warm synth pad (Am – F – C – G), generated live --------------
+
+let musicPref = (() => { try { return localStorage.getItem('rollover.music') === '1'; } catch { return false; } })();
+let music: { stop: () => void } | null = null;
+
+export const musicOn = () => musicPref;
+export function setMusic(on: boolean) {
+  musicPref = on;
+  try { localStorage.setItem('rollover.music', on ? '1' : '0'); } catch { /* storage blocked */ }
+  if (on) startMusic(); else stopMusic();
+}
+/** Browsers only allow sound after a tap, so a remembered "music on" starts with the first one. */
+export function resumeMusicOnGesture() {
+  if (musicPref && !music) document.addEventListener('pointerdown', () => startMusic(), { once: true });
+}
+
+const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
+
+function startMusic() {
+  if (music || muted) return;
+  const a = ac();
+  if (!a) return;
+  const master = a.createGain();
+  master.gain.setValueAtTime(0, a.currentTime);
+  master.gain.linearRampToValueAtTime(0.05, a.currentTime + 4);
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.7;
+  const lfo = a.createOscillator(); const lfoGain = a.createGain();
+  lfo.frequency.value = 0.05; lfoGain.gain.value = 450;
+  lfo.connect(lfoGain).connect(lp.frequency); lfo.start();
+  const delay = a.createDelay(1); delay.delayTime.value = 0.45;
+  const fb = a.createGain(); fb.gain.value = 0.35;
+  lp.connect(master); lp.connect(delay); delay.connect(fb).connect(delay); delay.connect(master);
+  master.connect(a.destination);
+
+  const chords = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+  const len = 8;
+  let i = 0;
+  const play = () => {
+    const t0 = a.currentTime + 0.05;
+    const notes = chords[i++ % chords.length];
+    for (const n of [...notes, notes[0] - 12]) {
+      for (const detune of n === notes[0] - 12 ? [0] : [-7, 7]) {
+        const o = a.createOscillator(); const g = a.createGain();
+        o.type = n === notes[0] - 12 ? 'sine' : 'sawtooth';
+        o.frequency.value = midi(n); o.detune.value = detune;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(n === notes[0] - 12 ? 0.5 : 0.18, t0 + 2.5);
+        g.gain.setValueAtTime(n === notes[0] - 12 ? 0.5 : 0.18, t0 + len - 1);
+        g.gain.linearRampToValueAtTime(0, t0 + len + 2);
+        o.connect(g).connect(lp);
+        o.start(t0); o.stop(t0 + len + 2.1);
+      }
+    }
+  };
+  play();
+  const timer = setInterval(play, len * 1000);
+  music = {
+    stop: () => {
+      clearInterval(timer);
+      master.gain.cancelScheduledValues(a.currentTime);
+      master.gain.setValueAtTime(master.gain.value, a.currentTime);
+      master.gain.linearRampToValueAtTime(0, a.currentTime + 1.5);
+      setTimeout(() => { lfo.stop(); master.disconnect(); }, 1700);
+    },
+  };
+}
+
+function stopMusic() { music?.stop(); music = null; }

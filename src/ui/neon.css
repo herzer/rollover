@@ -184,3 +184,9 @@ body.neon #app { position: relative; z-index: 1; }
 .neon .modal.coach li span { color: var(--soft); }
 .neon .rack .seg.rackseg.wrap { box-shadow: 0 0 0 1px var(--n-amber), 0 0 16px rgba(255,176,32,.45); }
 .neon .rack .seg.rackseg.wrap .tag { background: var(--n-amber); }
+.neon .lay { background: #22e4ff; color: #031016; font-family: "Chakra Petch", sans-serif; border-radius: 3px; box-shadow: 0 0 12px rgba(34,228,255,.55); }
+.neon .lay.wrap { background: var(--n-amber); box-shadow: 0 0 12px rgba(255,176,32,.6); }
+.neon .ghost { border-radius: 4px; border-color: rgba(34,228,255,.5); }
+.neon .ghost.ok { border-color: #22e4ff; background: rgba(34,228,255,.12); box-shadow: 0 0 22px rgba(34,228,255,.55); }
+.neon .ghost.bad { border-color: var(--n-red); background: rgba(255,42,109,.08); box-shadow: 0 0 16px rgba(255,42,109,.4); }
+.neon .btn.on { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(34,228,255,.4); }

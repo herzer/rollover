@@ -325,3 +325,18 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .modal.coach li { margin: 0 0 12px; }
 .modal.coach li b { display: block; font-size: 16px; }
 .modal.coach li span { color: var(--soft); }
+
+/* above the tiles: rack meld buttons and the drop ghost */
+.over { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+.lay { position: absolute; pointer-events: auto; height: 20px; padding: 0 7px; border: 0; border-radius: 6px; display: inline-flex; align-items: center; gap: 3px;
+  font: 800 10.5px/1 "Nunito", sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #0b3a2a; background: #9ff0cb; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: transform .12s; }
+.lay:hover { transform: translateY(-2px) scale(1.05); }
+.lay.idle { cursor: default; opacity: .85; }
+.lay.wrap { background: #ffd25a; color: #3a2600; }
+.ghost { position: absolute; border-radius: 8px; border: 2px dashed rgba(255,255,255,.7); background: rgba(255,255,255,.08); transition: left .08s, top .08s, width .08s; }
+.ghost.ok { border: 2px solid rgba(120,255,200,.95); background: rgba(120,255,200,.15); box-shadow: 0 0 16px rgba(120,255,200,.5); }
+.ghost.bad { border-color: rgba(255,90,120,.9); background: rgba(255,90,120,.10); }
+.btn.on { color: var(--accent); border-color: var(--accent); }
+.chip .dots::after { content: ''; display: inline-block; width: 16px; text-align: left; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
