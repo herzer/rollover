@@ -1,0 +1,21 @@
+{
+  "name": "rummikub",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "type": "module",
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "lucide": "^1.49.0",
+    "peerjs": "^1.5.5"
+  },
+  "private": true
+}

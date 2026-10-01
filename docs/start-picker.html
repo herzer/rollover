@@ -1,0 +1,211 @@
+<title>Rummikub Starting Picks</title>
+<style>
+  :root{
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57;
+    color-scheme:light;
+  }
+  :root:not([data-theme="light"]), :root[data-theme="dark"]{
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --bg:#f6f6f4; --paper:#ffffff; --ink:#1b1b1f; --soft:#6b6b75; --line:#e3e3df;
+    --accent:#d9277d; --accent-soft:#fce7f1; --ok:#2f7d5a; --warn:#a4600f; --panel2:#f0f0ee;
+    --gone:#b4341f; --new:#1f8a57; } }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 16px 120px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  header{padding:30px 0 4px;}
+  h1{margin:0;font-size:21px;letter-spacing:-.01em;}
+  .sub{color:var(--soft);font-size:13px;margin:5px 0 0;max-width:78ch;}
+  .ledger{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:16px 0 6px;}
+  .ledger h2{margin:0 0 8px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);}
+  .ledger p,.ledger li{font-size:12.8px;margin:6px 0 0;}
+  .ledger ul,.ledger ol{margin:6px 0 0;padding-left:18px;}
+  .assume{border-color:var(--warn);} .assume h2{color:var(--warn);}
+  .key{border-color:var(--gone);} .key h2{color:var(--gone);}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:6px;}
+  .tbl th{text-align:left;font:700 10.5px/1.2 system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);padding:6px 8px;border-bottom:1px solid var(--line);}
+  .tbl td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .tbl td.f{font-weight:600;white-space:nowrap;}
+  .tbl td.n{font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .tbl .new{color:var(--new);font-weight:700;}
+  .tblwrap{overflow-x:auto;}
+  code{font:11.5px ui-monospace,Menlo,monospace;background:var(--panel2);padding:0 4px;border-radius:4px;}
+  h2.part{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:38px 0 0;}
+  .partsub{color:var(--soft);font-size:12.5px;margin:4px 0 0;max-width:78ch;}
+  /* the stale list */
+  .stale{list-style:none;padding:0;margin:8px 0 0;}
+  .stale li{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 11px;margin:0 0 6px;font-size:12.3px;}
+  .stale .w{font-weight:600;}
+  .stale .src{color:var(--soft);font-size:11.5px;display:block;margin-top:2px;}
+  /* the questions */
+  h2.q{font-size:15.5px;margin:30px 0 2px;letter-spacing:-.01em;}
+  .ctx{font-size:12.5px;margin:4px 0 8px;max-width:80ch;background:var(--panel2);border-radius:8px;padding:8px 11px;}
+  .why{color:var(--soft);font-size:12.5px;margin:0 0 8px;max-width:78ch;}
+  label.opt{display:block;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 9px;cursor:pointer;}
+  label.opt:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;}
+  input[type=radio]{margin:0;accent-color:var(--accent);flex:none;position:relative;top:2px;}
+  input[type=radio]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .nm{font-size:13px;font-weight:600;}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ok);border:1px solid currentColor;border-radius:5px;padding:1px 5px;}
+  .rz{color:var(--soft);font-size:12px;margin:5px 0 0 25px;}
+  .catch{font-size:12px;margin:6px 0 0 25px;}
+  .catch b{color:var(--accent);font-weight:600;}
+  .bar-save{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+    padding:11px 16px calc(11px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;}
+  .bar-save .cnt{font-size:12.5px;color:var(--soft);}
+  button.save{height:34px;padding:0 17px;border-radius:8px;border:0;background:var(--accent);color:#fff;font:600 13px/1 inherit;cursor:pointer;}
+  button.save[disabled]{background:#c9c9cd;cursor:default;}
+  button.save:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .said{font-size:12.5px;color:var(--ok);}
+  .said.warn{color:var(--gone);}
+  /* FEEDBACK FIELDS (her rule, 2026-09-28): a note under every question and one at the end — optional, always there */
+  textarea.note{display:block;width:100%;min-height:38px;margin:2px 0 0;padding:8px 11px;border:1px dashed var(--line);border-radius:9px;
+    background:var(--paper);font:12.5px/1.45 inherit;color:var(--ink);resize:vertical;}
+  textarea.note:focus{outline:none;border-style:solid;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  textarea.note:not(:placeholder-shown){border-style:solid;border-color:var(--accent);}
+  h2.q.notes{margin-top:36px;}
+  .fallback{max-width:960px;margin:14px auto 0;display:none;}
+  .fallback textarea{width:100%;height:70px;font:12px ui-monospace,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;}
+</style>
+
+<style>
+  .mock{background:#1f6b4f;border-radius:12px;padding:10px;margin-top:10px;color:#fff;font-size:11px;}
+  .mock .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .mock .pl{background:rgba(255,255,255,.14);border-radius:8px;padding:4px 9px;}
+  .mock .pl.on{outline:2px solid #ffd54a;}
+  .mock .felt{min-height:96px;border:1px dashed rgba(255,255,255,.35);border-radius:9px;margin:8px 0;padding:8px;display:flex;gap:10px;flex-wrap:wrap;align-content:flex-start;}
+  .mock .meld{display:flex;gap:2px;}
+  .mock .t{width:20px;height:28px;background:#fffaf0;border-radius:4px;display:grid;place-items:center;font:700 12px/1 system-ui;box-shadow:0 1px 0 #c9bfa8;}
+  .mock .r{color:#d33}.mock .b{color:#1e5bd8}.mock .k{color:#222}.mock .o{color:#e08a00}
+  .mock .rack{background:#6b4a2b;border-radius:8px;padding:6px;display:flex;gap:2px;flex-wrap:wrap;}
+  .mock .btn{background:#fff;color:#1b1b1f;border-radius:6px;padding:4px 9px;font-weight:600;}
+  .mock .btn.p{background:var(--accent);color:#fff;}
+  .mock .new{outline:2px solid #ffd54a;outline-offset:2px;border-radius:5px;}
+</style>
+<div class="wrap">
+  <header>
+    <h1>Rummikub for you and Mom — four starting decisions</h1>
+    <p class="sub">You asked for a Rummikub you can play with your mom in Germany, also against the computer, with your family’s rollover rule (13 is followed by 1) and something that makes it more exciting than the classic. I am already building the parts that don’t depend on these answers — the rules engine, the table, the computer player. These four answers steer the rest.</p>
+  </header>
+
+  <div class="ledger assume">
+    <h2>The one rule this rests on — worth a yes or no first</h2>
+    <p><b>How I read your rollover rule.</b> In a run (same color, consecutive numbers), 13 may be followed by 1, so <b>12‑13‑1</b> and <b>13‑1‑2‑3</b> are valid runs. A run can start anywhere on the circle, but it is never longer than 13 tiles. Groups (same number, different colors) are unchanged. <b>A 1 is always worth 1 point</b> — for the 30‑point opening and for the end‑of‑round count. If any part of this is not how you and Mom play, say so in the note under question 3.</p>
+  </div>
+
+  <div class="ledger">
+    <h2>Where things go — the one main screen</h2>
+    <p>It is a new app, so nothing moves; this is the planned layout. The parts marked in yellow are the ones that exist because of you two: the rollover run on the table, and the reactions button.</p>
+    <div class="mock" aria-label="Sketch of the game screen">
+      <div class="row"><span class="pl on">Stefanie · 9 tiles · your turn</span><span class="pl">Mom · 11 tiles</span><span class="pl">Computer · 7 tiles</span><span style="margin-left:auto" class="pl">Pool 38</span></div>
+      <div class="felt">
+        <div class="meld new"><span class="t r">12</span><span class="t r">13</span><span class="t r">1</span><span class="t r">2</span></div>
+        <div class="meld"><span class="t b">7</span><span class="t k">7</span><span class="t o">7</span></div>
+        <div class="meld"><span class="t o">3</span><span class="t o">4</span><span class="t o">5</span><span class="t o">6</span></div>
+      </div>
+      <div class="rack"><span class="t r">5</span><span class="t r">9</span><span class="t b">1</span><span class="t b">2</span><span class="t k">11</span><span class="t k">12</span><span class="t o">8</span><span class="t k" style="color:#c2185b">☺</span><span class="t b">13</span></div>
+      <div class="row" style="margin-top:8px"><span class="btn">Sort 7‑7‑7</span><span class="btn">Sort 1‑2‑3</span><span class="btn">Undo</span><span class="btn new">Send a reaction</span><span style="margin-left:auto" class="btn">Draw a tile</span><span class="btn p">Done</span></div>
+    </div>
+  </div>
+
+  <h2 class="q">1. How does Mom get into the game?</h2>
+  <p class="why">Only about how the two of you connect across the ocean. Playing against the computer works the same way in every option.</p>
+  <label class="opt"><div class="top"><input type="radio" name="connect" value="1"><span class="nm">A web link — you send Mom a link, she taps it, she is in</span><span class="badge">recommended</span></div>
+    <p class="rz">The game is a web page hosted free on GitHub Pages (your GitHub account). You start a game, it shows a link and a short code; Mom opens it on her computer or iPad, no account, no install. Your two browsers talk to each other directly, so there is no server to pay for or keep running.</p><p class="catch"><b>Catch:</b> the game’s code sits in a public GitHub repository (no personal data in it). A few very strict networks (some office Wi‑Fi) block direct connections; home internet almost always works, and I would add a relay if it ever doesn’t.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="connect" value="2"><span class="nm">A Claude artifact page with a live room</span></div>
+    <p class="rz">The game lives on claude.ai as a private page, and the two of you join the same live room.</p><p class="catch"><b>Catch:</b> Mom needs to be invited to your claude.ai account and sign in each time — a real hurdle for a casual game with her.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="connect" value="3"><span class="nm">It runs on your Mac and Mom connects to it</span></div>
+    <p class="rz">A small game server on your Mac, reached by Mom through a tunnel link.</p><p class="catch"><b>Catch:</b> your Mac has to be on and awake whenever she wants to play — even when she just wants a practice round against the computer.</p></label>
+  <textarea class="note" data-note="connect" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 1"></textarea>
+
+  <h2 class="q">2. What language does Mom see?</h2>
+  <p class="why">Only about the words on screen. The tiles are numbers and colors, so the game itself reads the same either way.</p>
+  <label class="opt"><div class="top"><input type="radio" name="language" value="1"><span class="nm">Each player picks English or German on their own screen</span><span class="badge">recommended</span></div>
+    <p class="rz">You see American English, Mom sees German, in the same game. Her choice is remembered on her device.</p><p class="catch"><b>Catch:</b> every message is written twice, so a new feature takes a little longer.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="language" value="2"><span class="nm">English only</span></div>
+    <p class="rz">One language, everywhere.</p><p class="catch"><b>Catch:</b> Mom reads every hint and message in English.</p></label>
+  <textarea class="note" data-note="language" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 2"></textarea>
+
+  <h2 class="q">3. Is the rollover rule a switch, or just the rule?</h2>
+  <p class="why">Only about whether the setup screen offers classic rules too. The rule itself is described in the box at the top.</p>
+  <label class="opt"><div class="top"><input type="radio" name="rollover" value="1"><span class="nm">On by default, with a switch for classic rules</span><span class="badge">recommended</span></div>
+    <p class="rz">Every new game starts with rollover on; whoever creates the game can switch it off for a classic round.</p><p class="catch"><b>Catch:</b> one more control on the setup screen.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="rollover" value="2"><span class="nm">Always on — it is simply how this game works</span></div>
+    <p class="rz">No switch; the computer player always knows the rule too.</p><p class="catch"><b>Catch:</b> a visitor who wants classic Rummikub cannot have it.</p></label>
+  <textarea class="note" data-note="rollover" placeholder="Anything to add — or a correction to how I read the rule? (optional)" aria-label="Your note on question 3"></textarea>
+
+  <h2 class="q">4. Which twist makes it more exciting first?</h2>
+  <p class="why">Only about rule twists. Coming regardless: animations and a “Rollover!” celebration, sounds, emoji reactions to each other, undo, rack sorting, a hint button, and a running score between you and Mom across games.</p>
+  <label class="opt"><div class="top"><input type="radio" name="twist" value="1"><span class="nm">Star tiles — a few special tiles with a surprise effect</span><span class="badge">recommended</span></div>
+    <p class="rz">Four ★ tiles are shuffled into the pool (they still count as normal numbers). Laying one on the table triggers a surprise: the next player draws a tile, or you peek at an opponent’s rack, or the whole rack of the next player is shown face‑up for one turn. A switch in setup turns them off.</p><p class="catch"><b>Catch:</b> a new rule to explain to Mom — the game explains each effect when it fires, but it is still something to learn.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="twist" value="2"><span class="nm">Countdown turns — the timer shrinks as the pool runs out</span></div>
+    <p class="rz">Turns start relaxed (2 minutes) and get shorter as the game heats up; time out means you draw.</p><p class="catch"><b>Catch:</b> pressure is fun for some and stressful for others — and Mom may not want to be rushed.</p></label>
+  <label class="opt"><div class="top"><input type="radio" name="twist" value="3"><span class="nm">Challenges and badges — rules stay classic</span></div>
+    <p class="rz">Little goals per game (“play a rollover run”, “go out in one turn”, “use both jokers”) that earn badges you two collect.</p><p class="catch"><b>Catch:</b> it adds goals, not surprises — the game itself plays the same.</p></label>
+  <textarea class="note" data-note="twist" placeholder="Anything to add, or none of these? (optional)" aria-label="Your note on question 4"></textarea>
+
+  <h2 class="q notes">Anything else?</h2>
+  <p class="why">Whatever the questions did not ask — optional. For example: does Mom play on a computer, an iPad, or a phone?</p>
+  <textarea class="note" data-note="general" placeholder="Your note (optional)" aria-label="Anything else" style="min-height:70px"></textarea>
+</div>
+
+<div class="fallback" id="fb">
+  <p class="said warn" style="margin:0 0 6px">If saving does not work, copy this line and send it to me:</p>
+  <textarea id="fbt" readonly aria-label="Your choices, as text"></textarea>
+</div>
+<div class="bar-save">
+  <span class="cnt" id="cnt">0 of 4 answered</span>
+  <button type="button" class="save" id="save" disabled>Pick 4 more</button>
+  <span class="said" id="said" role="status"></span>
+</div>
+
+<script>
+  /* ⚠️ the values are positions: reordering or inserting an option after
+     publishing changes what a saved answer means — change the question's
+     name instead */
+  const QS = ['connect', 'language', 'rollover', 'twist'];   /* one name per question — a NAME, never a position */
+  const KEY = 'rummikub-start-picks';
+  const DOC = 'picks/rummikub-start';
+  let db = null;
+  const picks = () => { const o = {}; for (const q of QS) { const h = document.querySelector('input[name="' + q + '"]:checked'); if (h) o[q] = Number(h.value); } return o; };
+  /* the feedback fields — saved beside the picks, by question name ("general" for the last one) */
+  const notes = () => { const o = {}; for (const t of document.querySelectorAll('textarea.note[data-note]')) { const v = t.value.trim(); if (v) o[t.dataset.note] = v; } return o; };
+  const mirror = () => { const all = { picks: picks(), notes: notes() }; try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {} const t = document.getElementById('fbt'); if (t) t.value = JSON.stringify(all); };
+  const paint = () => {
+    const n = Object.keys(picks()).length, left = QS.length - n, b = document.getElementById('save');
+    const said = Object.keys(notes()).length;
+    b.disabled = n === 0 && !said; b.textContent = left > 0 ? (n === 0 && said ? 'Save my notes' : 'Pick ' + left + ' more') : 'Save my choices';
+    document.getElementById('cnt').textContent = n + ' of ' + QS.length + ' answered'; mirror();
+  };
+  const restore = (o) => { if (!o) return; for (const [q, v] of Object.entries(o)) { const h = document.querySelector('input[name="' + q + '"][value="' + v + '"]'); if (h) h.checked = true; } };
+  const restoreNotes = (o) => { if (!o) return; for (const [q, v] of Object.entries(o)) { const t = document.querySelector('textarea.note[data-note="' + q + '"]'); if (t && !t.value) t.value = v; } };
+  document.addEventListener('change', (e) => { if (e.target.name) { document.getElementById('said').textContent = ''; paint(); } });
+  document.addEventListener('input', (e) => { if (e.target.matches && e.target.matches('textarea.note')) { document.getElementById('said').textContent = ''; paint(); } });
+  document.getElementById('save').addEventListener('click', async () => {
+    const said = document.getElementById('said'); said.classList.remove('warn'); mirror();
+    if (!db) { said.classList.add('warn'); said.textContent = 'Could not reach the saved store — your picks are kept in this browser; copy the line below to me.'; document.getElementById('fb').style.display = 'block'; return; }
+    try {
+      await db.doc(DOC).set({ picks: picks(), notes: notes(), savedAt: new Date().toISOString() });
+      const back = await db.doc(DOC).get();
+      if (!back.exists) throw new Error('not there');
+      said.textContent = 'Saved — Claude can read these.';
+    } catch (err) {
+      said.classList.add('warn'); said.textContent = 'Saving did not go through — kept in this browser; copy the line below to me.';
+      document.getElementById('fb').style.display = 'block';
+    }
+  });
+  (async () => {
+    try { const m = JSON.parse(localStorage.getItem(KEY) || 'null'); if (m && m.picks) { restore(m.picks); restoreNotes(m.notes); } else restore(m); } catch (e) {}
+    paint();
+    try { db = await window.claude.use('db'); } catch (e) { db = null; }
+    if (!db) { document.getElementById('fb').style.display = 'block'; return; }
+    try { const d = await db.doc(DOC).get(); const data = d && d.exists ? d.data() : null; if (data) { restore(data.picks || null); restoreNotes(data.notes || null); paint(); } } catch (e) {}
+  })();
+</script>
