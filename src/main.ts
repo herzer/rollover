@@ -244,6 +244,5 @@ function boot() {
 
 document.documentElement.lang = lang();
 window.addEventListener('hashchange', () => { if (!client) home(); });
-document.body.classList.add('candy');
 applyFinish();
 if (import.meta.env.DEV && location.search.includes('lab')) lab(); else boot();

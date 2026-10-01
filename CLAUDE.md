@@ -15,7 +15,9 @@ or against computer players. Built 2026-09-30.
 - Her note: tiles must look like **beautiful 3D renders**. Then (2026-09-30): **"totally playful, a lot of
   three-dimensional candy … exciting and desirable to play."** So the whole app is candy: `src/ui/candy.css`
   (`.candy` on body: sprinkle table + candy-cane frame, chocolate rack, gummy buttons, bounce/jiggle) and
-  candy tile finishes (Gummy = default, Marshmallow, Hard candy); classic finishes stay in the palette.
+  candy tile finishes (Gummy, Marshmallow, Hard candy). Then, same day: **"too candy for me"** — she
+  picked **Maple** (picker option 7). Maple is `DEFAULT_FINISH`; the candy look now comes only with a
+  candy tile chosen from the palette (`applyFinish` toggles `.candy` on body).
 
 ## Name and trademark (Stefanie, 2026-09-30)
 The game is **Rollover** — "a tile rummy game". Tile rummy is a generic, decades-old game;
@@ -39,9 +41,8 @@ declared control height token `--control-h`.
 - Live: https://herzer.github.io/rollover/ (repo `herzer/rollover`, public; push to `main` deploys).
 - Done: engine + tests, 3 AI levels (worker), online play, reload recovery, EN/DE, star tiles,
   six tile finishes (`src/ui/tile-styles.css`, per-player palette button), dev panel ⌘⇧D (dev only).
-- Waiting on: tile pick — https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z (`picks/rollover-tiles`,
-  question `candyFinish`, options in the generator's order); then set `DEFAULT_FINISH` in `src/ui/game.ts`
-  (and drop the palette switcher if she answers `finishSwitch: 2`).
+- Tile picked in chat ("seven" = Maple) — the picker store `picks/rollover-tiles` was empty when read.
+  `finishSwitch` unanswered: the palette switcher stays (the recommended option).
   The picker page is generated: `python3 scripts/build-tile-picker.py`.
 - Strict networks: if the direct link will not open, guests fall back to a public MQTT relay (`src/net/relay.ts`, HiveMQ then EMQX). Force it with `?relay` to test.
 

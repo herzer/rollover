@@ -14,8 +14,10 @@ import { confetti } from './fx';
 
 const RACK_ROWS = 2;
 export const FINISHES = ['ts-gummy', 'ts-sugar', 'ts-hardcandy', '', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'];
-/** Candy is the game's look (Stefanie, 2026-09-30); the classic finishes stay in the palette. */
-export const DEFAULT_FINISH = 'ts-gummy';
+/** Stefanie's pick (2026-09-30, tile picker option 7): Maple. Candy was "too candy" — it stays in the palette. */
+export const DEFAULT_FINISH = 'ts-wood';
+/** A candy tile brings the whole candy look (table, rack, buttons) with it; every other tile keeps the classic table. */
+const CANDY = ['ts-gummy', 'ts-sugar', 'ts-hardcandy'];
 export function finish(): string {
   try { const f = localStorage.getItem('rollover.finish'); if (f !== null && FINISHES.includes(f)) return f; } catch { /* storage blocked */ }
   return DEFAULT_FINISH;
@@ -26,6 +28,7 @@ export function applyFinish() {
   for (const f of FINISHES) if (f) document.body.classList.remove(f);
   const f = finish();
   if (f) document.body.classList.add(f);
+  document.body.classList.toggle('candy', CANDY.includes(f));
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
