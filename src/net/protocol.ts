@@ -37,4 +37,4 @@ export type ToClient =
   | { t: 'pong' }
   | { t: 'who' };
 
-export const REACTIONS = ['👏', '😂', '😮', '😅', '❤️', '🎉', '🤔', '😎'];
+export const REACTIONS = ['😻', '🐾', '👏', '😂', '😮', '😅', '❤️', '🎉'];

@@ -2,7 +2,7 @@
 import {
   Crown, Star, Undo2, Lightbulb, Hand, Check, ArrowDownWideNarrow, Layers, Volume2, VolumeX,
   Languages, LogOut, Copy, Bot, User, Users, Plus, X, Play, Wifi, WifiOff, Trophy, Sparkles,
-  RefreshCw, Smile, Palette, ArrowUp, Music, Eye, Repeat, Link, Share2, HelpCircle, Settings2,
+  RefreshCw, Smile, Palette, ArrowUp, Music, Cat, Eye, Repeat, Link, Share2, HelpCircle, Settings2,
 } from 'lucide';
 
 type Node = [string, Record<string, string | number>][];
@@ -11,7 +11,7 @@ const ICONS: Record<string, Node> = {
   sortNum: ArrowDownWideNarrow, sortGroup: Layers, sound: Volume2, mute: VolumeX, lang: Languages,
   leave: LogOut, copy: Copy, bot: Bot, user: User, users: Users, plus: Plus, x: X, play: Play,
   wifi: Wifi, wifiOff: WifiOff, trophy: Trophy, sparkles: Sparkles, refresh: RefreshCw,
-  smile: Smile, palette: Palette, arrowUp: ArrowUp, music: Music, eye: Eye, repeat: Repeat, link: Link, share: Share2, help: HelpCircle, settings: Settings2,
+  smile: Smile, palette: Palette, arrowUp: ArrowUp, music: Music, cat: Cat, eye: Eye, repeat: Repeat, link: Link, share: Share2, help: HelpCircle, settings: Settings2,
 } as unknown as Record<string, Node>;
 
 export function icon(name: keyof typeof ICONS | string, size = 18, stroke = 2): string {

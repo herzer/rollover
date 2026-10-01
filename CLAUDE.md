@@ -22,6 +22,12 @@ or against computer players. Built 2026-09-30.
   `.ts-chrome` crisp steel). The 4th color is ultraviolet in neon (black can't glow). Maple, classics and
   candy stay in the palette; a candy tile brings `.candy`, a neon tile brings `.neon` (`applyFinish`).
   Note: the app's own theme is dark by her request; the light-mode rule is about mockups/previews.
+- Then: **"sweeter to me means 3D tiles and a friendly color scheme"** + **"add some kitten love"** +
+  **"push down longer → things move as a group"**. Default now: `src/ui/friendly.css` (`.friendly` +
+  palette `.pal-sage` default / `.pal-sea` / `.pal-lilac`) with the `.ts-3d` tile (thick, leaning);
+  kitten mascot `src/ui/kitty.ts` on the rack (naps, hearts, rolls on rollover, purrs when petted),
+  kitten-face joker, paw-print confetti; press-and-hold (420 ms) lifts the whole meld.
+  Neon and candy remain in the palette menu.
 
 ## Name and trademark (Stefanie, 2026-09-30)
 The game is **Rollover** — "a tile rummy game". Tile rummy is a generic, decades-old game;

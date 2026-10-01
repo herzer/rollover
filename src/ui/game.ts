@@ -12,12 +12,20 @@ import { t, lang, setLang } from './i18n';
 import { icon } from './icons';
 import { sfx, isMuted, setMuted, musicOn, setMusic, resumeMusicOnGesture } from './sound';
 import { confetti } from './fx';
+import { Kitty, KITTEN_FACE } from './kitty';
 
 const RACK_ROWS = 2;
-export const FINISHES = ['ts-neon', 'ts-chrome', 'ts-wood', '', 'ts-porcelain', 'ts-jade', 'ts-glass', 'ts-clay', 'ts-gummy', 'ts-sugar', 'ts-hardcandy'];
+export const FINISHES = ['ts-3d', 'ts-wood', '', 'ts-porcelain', 'ts-jade', 'ts-clay', 'ts-glass', 'ts-neon', 'ts-chrome', 'ts-gummy', 'ts-sugar', 'ts-hardcandy'];
 /** Stefanie (2026-09-30): Maple "for now", then "a crisper, more Blade Runner look" — neon is the default;
  *  Maple, the classics and candy stay in the palette. */
-export const DEFAULT_FINISH = 'ts-neon';
+export const DEFAULT_FINISH = 'ts-3d';
+/** "Sweeter to me means 3D tiles and a friendly color scheme" (2026-09-30): friendly is the default look. */
+export const DEFAULT_PALETTE = 'pal-sage';
+export const PALETTES = ['pal-sage', 'pal-sea', 'pal-lilac'];
+export function palette(): string {
+  try { const p = localStorage.getItem('rollover.palette'); if (p && PALETTES.includes(p)) return p; } catch { /* storage blocked */ }
+  return DEFAULT_PALETTE;
+}
 /** A neon tile brings the night-city look (table, rack, chrome) with it. */
 const NEON = ['ts-neon', 'ts-chrome'];
 /** A candy tile brings the whole candy look (table, rack, buttons) with it; every other tile keeps the classic table. */
@@ -34,6 +42,9 @@ export function applyFinish() {
   if (f) document.body.classList.add(f);
   document.body.classList.toggle('candy', CANDY.includes(f));
   document.body.classList.toggle('neon', NEON.includes(f));
+  const friendly = !CANDY.includes(f) && !NEON.includes(f);
+  document.body.classList.toggle('friendly', friendly);
+  for (const p of PALETTES) document.body.classList.toggle(p, friendly && p === palette());
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -53,7 +64,7 @@ interface Drag {
 
 export function tileHTML(tile: Tile): string {
   const inner = tile.joker
-    ? `<span class="jk">${icon('crown', 24, 2.4)}</span>`
+    ? `<span class="jk">${KITTEN_FACE}</span>`
     : `<span class="n">${tile.num}</span>`;
   return inner + (tile.star ? '<span class="st">★</span>' : '');
 }
@@ -66,6 +77,7 @@ export class GameView {
   private layer!: HTMLElement;
   /** Above the tiles: rack meld labels and the drop ghost. */
   private overlay!: HTMLElement;
+  private kitty!: Kitty;
   private tileEls = new Map<number, HTMLElement>();
   private draft: Placed[] | null = null;
   private draftKey = '';
@@ -201,6 +213,8 @@ export class GameView {
     this.rackEl = ref('rack');
     this.layer = ref('layer');
     this.overlay = ref('over');
+    this.kitty = new Kitty(this.el);
+    this.kitty.setTitle(t().petKitty);
     this.el.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
       if (b && !(b as HTMLButtonElement).disabled) this.act(b.dataset.act!, b);
@@ -380,7 +394,8 @@ export class GameView {
     switch (e.k) {
       case 'play':
         if (e.p !== this.seat) sfx.place();
-        if (e.rollover) { setTimeout(() => { this.banner(t().rollover); sfx.rollover(); }, 350); }
+        if (e.rollover) { setTimeout(() => { this.banner(t().rollover); sfx.rollover(); this.kitty.rollover(); }, 350); }
+        else if (e.p === this.seat) this.kitty.happy();
         else if (e.opened && e.p !== this.seat) this.toast(t().log.open(name(e.p)));
         break;
       case 'draw': if (e.p !== this.seat) sfx.draw(); break;
@@ -390,7 +405,7 @@ export class GameView {
         setTimeout(() => { this.starCard(card.title, card.body(name(e.p), name(e.target))); sfx.star(); }, 500);
         break;
       }
-      case 'win': setTimeout(() => sfx.win(), 300); break;
+      case 'win': setTimeout(() => { sfx.win(); if (s.players[e.p]?.kind === 'human') this.kitty.party(); }, 300); break;
       default: break;
     }
   }
@@ -426,7 +441,7 @@ export class GameView {
       const grip = mine && !this.drag?.active ? `<div class="grip" data-seg="${i}" title="${esc(t().gripTip)}" style="left:${x - 13}px;top:${y + 3}px;height:${this.th}px"></div>` : '';
       return `<div class="seg ${g.eval.ok ? 'ok' : 'bad'}${g.eval.wraps ? ' wrap' : ''}${pulse}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.tw + this.gap) - this.gap + 6}px;height:${this.th + 6}px">${why ? `<span class="why">${esc(t().problem[why])}</span>` : ''}</div>${grip}`;
     }).join('') : '';
-    if (lit) sfx.meld();
+    if (lit) { sfx.meld(); this.kitty.happy(); }
     // runs and groups sitting together on the rack glow, so you can see what you could lay — one tap lays them
     const rackSegs = checkBoard([...this.rackPos].filter(([id]) => this.rackIds().includes(id)).map(([id, p]) => ({ id, r: p.r, c: p.c })), s.tiles, s.rules).segs;
     const ro = this.origin('rack');
@@ -558,6 +573,10 @@ export class GameView {
     btn('done').disabled = !this.myTurn || !ready || waiting;
     const drawLabel = this.el.querySelector('[data-ref="drawLabel"]') as HTMLElement;
     drawLabel.textContent = s.pool.length ? tt.draw : tt.pass;
+    // the kitten sits on the rack's top-right corner, awake for your turn and for the end of a round
+    const host = this.el.getBoundingClientRect(), rk = this.rackEl.getBoundingClientRect();
+    this.kitty.place(rk.right - host.left - 92, rk.top - host.top - 64);
+    this.kitty.setAwake(this.myTurn || s.phase === 'over');
     btn('draw').title = s.pool.length ? tt.drawTip : tt.passTip;
   }
 
@@ -686,6 +705,17 @@ export class GameView {
 
   // ---------------------------------------------------------- drag & drop --
 
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** The meld a tile sits in — on the table, or side by side on the rack. */
+  private meldOf(id: number): number[] {
+    const onBoard = this.displayBoard().some((p) => p.id === id);
+    const cells = onBoard
+      ? this.displayBoard()
+      : this.rackIds().map((x) => ({ id: x, ...this.rackPos.get(x)! }));
+    return segments(cells).find((g) => g.ids.includes(id))?.ids ?? [id];
+  }
+
   private onDown = (e: PointerEvent) => {
     const el = (e.target as HTMLElement).closest('.tile') as HTMLElement | null;
     if (!el || this.drag || e.button > 0) return;
@@ -696,6 +726,20 @@ export class GameView {
     const r = el.getBoundingClientRect();
     this.drag = { id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, grabX: e.clientX - r.left, grabY: e.clientY - r.top, w: r.width, h: r.height, group: [id], active: false };
     e.preventDefault();
+    // press and hold: the whole meld lifts and moves as one
+    if (this.holdTimer) clearTimeout(this.holdTimer);
+    const d = this.drag;
+    this.holdTimer = setTimeout(() => {
+      if (this.drag !== d || d.active) return;
+      const meld = this.meldOf(id).filter((x) => onBoard || this.myRack.includes(x));
+      if (meld.length < 2) return;
+      d.group = meld;
+      d.forced = true;
+      this.selected = new Set(meld);
+      for (const x of meld) this.tileEls.get(x)?.classList.add('sel');
+      sfx.pick();
+      try { navigator.vibrate?.(12); } catch { /* not supported */ }
+    }, 420);
   };
 
   /** Tap tiles, then tap an empty spot: they move there — no dragging needed. */
@@ -728,6 +772,7 @@ export class GameView {
     if (!d || e.pointerId !== d.pointerId) return;
     if (!d.active) {
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6) return;
+      if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
       d.active = true;
       if (!d.forced) {
         d.group = this.selected.has(d.id) ? this.orderedSelection() : [d.id];
@@ -753,6 +798,7 @@ export class GameView {
     const d = this.drag;
     if (!d || e.pointerId !== d.pointerId) return;
     this.drag = null;
+    if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
     if (!d.active) { if (d.forced) this.render(); else this.tapped(d.id); return; }
     for (const id of d.group) this.tileEls.get(id)?.classList.remove('dragging');
     this.showGhost(null, 0, 0, []);

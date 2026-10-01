@@ -340,3 +340,34 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .btn.on { color: var(--accent); border-color: var(--accent); }
 .chip .dots::after { content: ''; display: inline-block; width: 16px; text-align: left; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+/* the kitten */
+.kitty { position: absolute; z-index: 8; width: 84px; height: 73px; padding: 0; border: 0; background: none; cursor: pointer; transition: left .3s, top .3s; }
+.kitty svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 4px rgba(60,40,10,.25)); }
+.kitty .k-tail { transform-origin: 88px 86px; animation: swish 3s ease-in-out infinite; }
+@keyframes swish { 50% { transform: rotate(-14deg); } }
+.kitty .k-eyes-happy, .kitty .k-eyes-shut { display: none; }
+.kitty .k-eyes-open { transform-origin: 60px 42px; animation: blink 5s infinite; }
+@keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(.1); } }
+.kitty.happy .k-eyes-open, .kitty.sleep .k-eyes-open { display: none; }
+.kitty.happy .k-eyes-happy { display: inline; }
+.kitty.sleep:not(.happy) .k-eyes-shut { display: inline; }
+.kitty.sleep:not(.happy) .k-head { transform: translateY(4px) rotate(-6deg); transform-origin: 60px 60px; }
+.kitty .k-head { transition: transform .4s; }
+.kitty.happy .k-head { animation: nuzzle .5s ease-in-out 2; transform-origin: 60px 70px; }
+@keyframes nuzzle { 50% { transform: rotate(8deg); } }
+.kitty.roll svg { animation: rollover 1.1s cubic-bezier(.4,1.4,.5,1); transform-origin: 50% 60%; }
+@keyframes rollover { to { transform: rotate(360deg); } }
+.kitty.party svg { animation: hop .45s ease-in-out 6; }
+@keyframes hop { 50% { transform: translateY(-16px) rotate(-4deg); } }
+.kitty .k-zzz { position: absolute; right: -4px; top: -6px; font: 800 13px/1 "Nunito", sans-serif; color: #7a8aa0; display: none; pointer-events: none; }
+.kitty .k-zzz i, .kitty .k-zzz b { font-style: normal; font-weight: 800; position: relative; }
+.kitty .k-zzz i { top: -6px; font-size: 15px; } .kitty .k-zzz b { top: -13px; font-size: 18px; }
+.kitty.sleep:not(.happy) .k-zzz { display: block; animation: zzz 2.4s ease-in-out infinite; }
+@keyframes zzz { 50% { transform: translate(3px, -4px); opacity: .6; } }
+.k-heart { position: absolute; bottom: 60%; color: #ff6b8a; pointer-events: none; animation: heart 1.6s ease-out forwards; text-shadow: 0 1px 0 rgba(0,0,0,.1); }
+@keyframes heart { 0% { transform: translateY(0) scale(.4); opacity: 0; } 15% { opacity: 1; transform: translateY(-6px) scale(1.1); } 100% { transform: translateY(-60px) translateX(8px) scale(.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kitty .k-tail, .kitty .k-eyes-open, .kitty.roll svg, .kitty.party svg { animation: none; } }
+
+.tile .jk svg.kface { stroke: none !important; width: 100%; height: auto; }
+.tile.joker .jk { width: 74%; filter: drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 1px rgba(80,40,0,.25)); }

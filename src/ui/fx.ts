@@ -9,7 +9,8 @@ export function confetti(host: HTMLElement, ms = 3200) {
   host.appendChild(c);
   const g = c.getContext('2d')!;
   g.scale(dpr, dpr);
-  const colors = document.body.classList.contains('neon')
+  const friendly = document.body.classList.contains('friendly');
+  const colors = friendly ? ['#e5484d', '#2f6fde', '#f08c00', '#f2a35c', '#ff9fb0', '#7fbf8f'] : document.body.classList.contains('neon')
     ? ['#ff2a6d', '#22e4ff', '#ffb020', '#b48cff', '#ffffff']
     : ['#ff3b6b', '#2f7bff', '#ff9416', '#ffc21a', '#3ccf91', '#a35bff', '#ff8fb1'];
   const bits = Array.from({ length: 160 }, () => ({
@@ -27,7 +28,10 @@ export function confetti(host: HTMLElement, ms = 3200) {
       g.save(); g.translate(b.x, b.y); g.rotate(b.a);
       g.globalAlpha = Math.max(0, 1 - el / ms);
       g.fillStyle = b.col;
-      if (b.w > 9) { g.beginPath(); g.arc(0, 0, b.w / 2, 0, Math.PI * 2); g.fill(); }   // candy drops
+      if (friendly && b.w > 10) { // paw prints
+        g.beginPath(); g.ellipse(0, 3, 5, 4, 0, 0, Math.PI * 2); g.fill();
+        for (const [tx, ty] of [[-5, -3], [-1.7, -6], [1.7, -6], [5, -3]]) { g.beginPath(); g.arc(tx, ty, 1.8, 0, Math.PI * 2); g.fill(); }
+      } else if (b.w > 9) { g.beginPath(); g.arc(0, 0, b.w / 2, 0, Math.PI * 2); g.fill(); }   // drops
       else { g.beginPath(); g.roundRect(-b.w / 2, -b.h / 2, b.w, b.h, 3); g.fill(); } // sprinkles
       g.restore();
     }

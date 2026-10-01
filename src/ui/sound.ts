@@ -65,6 +65,30 @@ export const sfx = {
   star: () => [1319, 1568, 2093, 2637].forEach((f, i) => tone(f, 0.3, 'sine', 0.07, i * 0.06)),
   win: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.28, 'triangle', 0.11, i * 0.13)),
   react: () => tone(990, 0.1, 'sine', 0.06),
+  meow: () => {
+    const a = ac();
+    if (!a) return;
+    const t0 = a.currentTime;
+    const o = a.createOscillator(); const f = a.createBiquadFilter(); const g = a.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(520, t0); o.frequency.linearRampToValueAtTime(820, t0 + 0.18); o.frequency.linearRampToValueAtTime(480, t0 + 0.55);
+    f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(900, t0); f.frequency.linearRampToValueAtTime(1800, t0 + 0.2); f.frequency.linearRampToValueAtTime(1000, t0 + 0.55);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.12, t0 + 0.06); g.gain.setValueAtTime(0.12, t0 + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+    o.connect(f).connect(g).connect(a.destination); o.start(t0); o.stop(t0 + 0.65);
+  },
+  purr: () => {
+    const a = ac();
+    if (!a) return;
+    const t0 = a.currentTime, dur = 1.4;
+    const len = Math.floor(a.sampleRate * dur);
+    const buf = a.createBuffer(1, len, a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) { const tt = i / a.sampleRate; d[i] = (Math.random() * 2 - 1) * (0.5 + 0.5 * Math.sin(2 * Math.PI * 24 * tt)) ** 3; }
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 320;
+    const g = a.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.5, t0 + 0.2); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    src.connect(f).connect(g).connect(a.destination); src.start(t0);
+  },
   meld: () => { tone(784, 0.12, 'sine', 0.08); tone(1175, 0.22, 'sine', 0.08, 0.08); },
 };
 
