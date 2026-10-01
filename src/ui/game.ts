@@ -675,41 +675,36 @@ export class GameView {
     else for (const [id, p] of this.rackPos) { if (!moving.has(id)) cells.set(cellKey(p.r, p.c), id); }
     const free = (cc: number) => !cells.has(cellKey(r, cc));
 
-    let shift: { from: number; to: number } | null = null;
+    // tiles in this row from c onward make room; melds that were apart stay apart
+    const moves = new Map<number, number>(); // id -> new column
     let ok = true;
     for (let k = 0; k < n; k++) if (!free(c + k)) ok = false;
     if (!ok) {
-      // push the tiles from c onward to the right, if the row has room
-      let end = c;
-      while (end < cols && !free(end)) end++;
-      // tiles from c..end-1 move right by enough to clear c..c+n-1
-      const firstBusy = [...Array(n).keys()].map((k) => c + k).find((cc) => !free(cc))!;
-      const by = c + n - firstBusy;
-      let room = true;
-      for (let cc = end; cc < end + by; cc++) if (cc >= cols || !free(cc)) room = false;
-      if (room) { shift = { from: firstBusy, to: by }; ok = true; }
-      // tiles before c inside the line also need to be free
-      for (let k = 0; k < firstBusy - c; k++) if (!free(c + k)) ok = false;
+      const row = [...cells.entries()]
+        .map(([key, id]) => ({ id, col: key % 1000, r: Math.floor(key / 1000) }))
+        .filter((x) => x.r === r && x.col >= c)
+        .sort((x, y) => x.col - y.col);
+      let prevOld = -1, prevNew = c + n - 1;
+      ok = true;
+      for (const x of row) {
+        const touching = prevOld >= 0 ? x.col === prevOld + 1 : true;
+        const need = prevOld < 0 ? prevNew + 1 : touching ? prevNew + 1 : prevNew + 2;
+        const col = Math.max(x.col, need);
+        if (col >= cols) { ok = false; break; }
+        if (col !== x.col) moves.set(x.id, col);
+        prevOld = x.col; prevNew = col;
+      }
     }
     if (!ok) return false;
 
     if (area === 'board') {
-      let board = this.draft!.filter((p) => !moving.has(p.id));
-      if (shift) {
-        const sh = shift;
-        let end = sh.from; while (end < cols && !free(end)) end++;
-        board = board.map((p) => (p.r === r && p.c >= sh.from && p.c < end ? { ...p, c: p.c + sh.to } : p));
-      }
+      const board = this.draft!.filter((p) => !moving.has(p.id)).map((p) => (moves.has(p.id) ? { ...p, c: moves.get(p.id)! } : p));
       ids.forEach((id, k) => board.push({ id, r, c: c + k }));
       this.draft = board;
       for (const id of ids) this.rackPos.delete(id);
       this.sendDraft();
     } else {
-      if (shift) {
-        const sh = shift;
-        let end = sh.from; while (end < cols && !free(end)) end++;
-        for (const [id, p] of this.rackPos) if (!moving.has(id) && p.r === r && p.c >= sh.from && p.c < end) this.rackPos.set(id, { r, c: p.c + sh.to });
-      }
+      for (const [id, col] of moves) this.rackPos.set(id, { r, c: col });
       ids.forEach((id, k) => this.rackPos.set(id, { r, c: c + k }));
       if (this.draft && ids.some((id) => this.draft!.some((p) => p.id === id))) {
         this.draft = this.draft.filter((p) => !moving.has(p.id));
