@@ -188,6 +188,15 @@ export class Host {
     if (r.ok) this.setState(r.state);
   }
 
+  /** The computer plays one turn for a seat whose player has lost their connection. */
+  playFor(seatId: string) {
+    const s = this.state;
+    if (!s || s.phase !== 'playing' || s.players[s.turn].id !== seatId) return;
+    const job = ++this.job;
+    if (this.worker) this.worker.postMessage({ state: s, seat: s.turn, level: 2, budget: 60000, job });
+    else this.aiDone(job, chooseMove(s, s.turn, 2, 60000));
+  }
+
   /** Restarts the computer players after a reload. */
   kick() { this.scheduleAi(); }
 

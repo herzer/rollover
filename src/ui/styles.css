@@ -22,6 +22,8 @@
   /* tile geometry, set from JS to fit the window */
   --tw: 44px;
   --th: 58px;
+  --rtw: 44px;
+  --rth: 58px;
   --gap: 4px;
   color-scheme: light;
 }
@@ -131,7 +133,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .status .sub { font-weight: 600; color: var(--soft); margin-left: 8px; }
 .status .sub.ok { color: var(--accent); }
 
-.tablewrap { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 4px 10px; min-height: 0; }
+.tablewrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px 10px; min-height: 0; }
 .board {
   position: relative;
   width: calc(var(--cols) * (var(--tw) + var(--gap)) + 16px);
@@ -158,8 +160,8 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .rackwrap { display: flex; justify-content: center; padding: 6px 10px 4px; }
 .rack {
   position: relative;
-  width: calc(var(--rcols) * (var(--tw) + var(--gap)) + 20px);
-  height: calc(var(--rrows) * (var(--th) + var(--gap)) + 18px);
+  width: calc(var(--rcols) * (var(--rtw) + var(--gap)) + 20px);
+  height: calc(var(--rrows) * (var(--rth) + var(--gap)) + 18px);
   border-radius: 12px;
   background:
     repeating-linear-gradient(92deg, rgba(255,255,255,.04) 0 3px, rgba(0,0,0,.03) 3px 7px),
@@ -198,7 +200,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   display: grid; place-items: center;
   pointer-events: auto; cursor: grab;
   touch-action: none; user-select: none; -webkit-user-select: none;
-  transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .2s, filter .2s;
+  transition: transform .32s cubic-bezier(.2,.8,.2,1), width .25s, height .25s, box-shadow .2s, filter .2s;
   will-change: transform;
 }
 .tile::before {
@@ -227,6 +229,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
   filter: drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 -.5px 0 rgba(60,40,10,.35));
   pointer-events: none;
 }
+.tiles .tile.onrack { --tw: var(--rtw); --th: var(--rth); }
 .tile.c0 { --tc: var(--t-red); }
 .tile.c1 { --tc: var(--t-blue); }
 .tile.c2 { --tc: var(--t-orange); }
@@ -293,6 +296,13 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 .modal li { margin: 0 0 8px; }
 .confetti { position: absolute; inset: 0; pointer-events: none; z-index: 99; }
 .rotate-hint { display: none; }
-@media (max-width: 560px) and (orientation: portrait) {
-  .game .rotate-hint { display: block; position: absolute; top: 60px; left: 16px; right: 16px; z-index: 60; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-weight: 700; text-align: center; }
+@media (orientation: portrait) and (max-width: 900px) {
+  .game .rotate-hint { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--soft); font-size: 13px; font-weight: 700; padding: 2px 0 4px; }
 }
+
+.popover.finishes { grid-template-columns: repeat(3, 84px); }
+.popover.finishes button { height: auto; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; border: 2px solid transparent; }
+.popover.finishes button.on { border-color: var(--accent); background: var(--accent-soft); }
+.popover.finishes small { font: 700 11.5px/1.1 "Nunito", sans-serif; color: var(--ink); }
+.status .btn.sm { vertical-align: middle; margin-left: 8px; }
+.status { height: auto; min-height: 28px; }

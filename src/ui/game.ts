@@ -13,7 +13,15 @@ import { sfx, isMuted, setMuted } from './sound';
 import { confetti } from './fx';
 
 const RACK_ROWS = 2;
-const RACK_COLS = 24;
+export const FINISHES = ['', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'];
+/** The suite default until a player picks their own. */
+export const DEFAULT_FINISH = '';
+export function finish(): string {
+  try { const f = localStorage.getItem('rollover.finish'); if (f !== null && FINISHES.includes(f)) return f; } catch { /* storage blocked */ }
+  return DEFAULT_FINISH;
+}
+function setFinish(f: string) { try { localStorage.setItem('rollover.finish', f); } catch { /* storage blocked */ } }
+
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 type Area = 'board' | 'rack';
@@ -22,6 +30,7 @@ interface Drag {
   pointerId: number;
   x0: number; y0: number;
   grabX: number; grabY: number;
+  w: number; h: number;
   group: number[];
   active: boolean;
 }
@@ -48,6 +57,8 @@ export class GameView {
   private drag: Drag | null = null;
   private lastClick = { id: -1, at: 0 };
   private tw = 44; private th = 58; private gap = 4;
+  /** Rack tiles can be bigger than table tiles on small screens. */
+  private rtw = 44; private rth = 58; private rackCols = 24;
   private rackRows = RACK_ROWS;
   private prevBoard = new Set<number>();
   private logSeen = -1;
@@ -60,10 +71,12 @@ export class GameView {
   constructor(private root: HTMLElement, private client: Client, private onLeave: () => void) {
     this.el = document.createElement('div');
     this.el.className = 'game';
+    if (finish()) this.el.classList.add(finish());
     root.replaceChildren(this.el);
     this.build();
     this.off = client.on((e) => this.onEvent(e));
     window.addEventListener('resize', this.onResize);
+    document.addEventListener('visibilitychange', this.onVisible);
     window.addEventListener('pointermove', this.onMove);
     window.addEventListener('pointerup', this.onUp);
     window.addEventListener('pointercancel', this.onUp);
@@ -74,12 +87,14 @@ export class GameView {
   destroy() {
     this.off();
     window.removeEventListener('resize', this.onResize);
+    document.removeEventListener('visibilitychange', this.onVisible);
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
     window.removeEventListener('pointercancel', this.onUp);
   }
 
   private onResize = () => { this.measure(); this.render(); };
+  private onVisible = () => { if (!document.hidden) document.title = `${t().appName} — a tile rummy game`; };
 
   // ---------------------------------------------------------------- build --
 
@@ -91,11 +106,13 @@ export class GameView {
         <div class="chip poolchip" data-ref="pool" title="${esc(t().poolTip)}"><span class="poolstack"></span><span data-ref="poolN"></span></div>
         <button class="btn icon" data-act="help" title="${esc(t().helpTip)}">${icon('help')}</button>
         <button class="btn icon" data-act="lang" title="${esc(t().langTip)}">${lang() === 'en' ? 'DE' : 'EN'}</button>
+        <button class="btn icon" data-act="tiles" title="${esc(t().tilesTip)}">${icon('palette')}</button>
         <button class="btn icon" data-act="sound" title="${esc(t().soundTip)}">${icon(isMuted() ? 'mute' : 'sound')}</button>
         <button class="btn icon" data-act="leave" title="${esc(t().leaveTip)}">${icon('leave')}</button>
       </header>
       <div class="status" data-ref="status"></div>
       <div class="tablewrap"><div class="board" data-ref="board"></div></div>
+      <div class="rotate-hint">${icon('refresh', 14)} ${lang() === 'de' ? 'Dreh dein Gerät quer — dann wird der Tisch größer.' : 'Turn your device sideways for a bigger table.'}</div>
       <div class="reveals" data-ref="reveals"></div>
       <div class="rackwrap"><div class="rack" data-ref="rack"></div></div>
       <div class="actions" data-ref="actions">
@@ -110,7 +127,6 @@ export class GameView {
         <button class="btn primary" data-act="done" title="${esc(t().doneTip)}">${icon('check')}${t().done}</button>
       </div>
       <div class="tiles" data-ref="layer"></div>
-      <div class="rotate-hint">↻ ${lang() === 'de' ? 'Dreh dein Telefon quer — dann sind die Steine größer.' : 'Turn your phone sideways for bigger tiles.'}</div>
     `;
     const ref = (n: string) => this.el.querySelector(`[data-ref="${n}"]`) as HTMLElement;
     this.boardEl = ref('board');
@@ -162,12 +178,12 @@ export class GameView {
     const keep = new Set(ids);
     for (const id of [...this.rackPos.keys()]) if (!keep.has(id)) this.rackPos.delete(id);
     const need = ids.length;
-    this.rackRows = Math.max(RACK_ROWS, Math.ceil((need + 2) / RACK_COLS));
+    this.rackRows = Math.max(RACK_ROWS, Math.ceil((need + 2) / this.rackCols));
     const used = new Set([...this.rackPos.values()].map((p) => cellKey(p.r, p.c)));
     for (const id of ids) {
       if (this.rackPos.has(id)) {
         const p = this.rackPos.get(id)!;
-        if (p.r < this.rackRows && p.c < RACK_COLS) continue;
+        if (p.r < this.rackRows && p.c < this.rackCols) continue;
         this.rackPos.delete(id);
         used.delete(cellKey(p.r, p.c));
       }
@@ -178,7 +194,7 @@ export class GameView {
   }
 
   private freeRackCell(used: Set<number>) {
-    for (let r = 0; r < this.rackRows; r++) for (let c = 0; c < RACK_COLS; c++) if (!used.has(cellKey(r, c))) return { r, c };
+    for (let r = 0; r < this.rackRows; r++) for (let c = 0; c < this.rackCols; c++) if (!used.has(cellKey(r, c))) return { r, c };
     this.rackRows++;
     return { r: this.rackRows - 1, c: 0 };
   }
@@ -191,17 +207,29 @@ export class GameView {
     const gap = W < 700 ? 2 : 4;
     const byW = (W - 40) / BOARD_COLS - gap;
     const chrome = 56 + 28 + 64 + 46 + 30 + (this.el.querySelector('.reveals')?.clientHeight ?? 0);
-    const byH = ((H - chrome) / (BOARD_ROWS + this.rackRows) - gap) / 1.32;
-    const tw = Math.max(16, Math.min(60, Math.floor(Math.min(byW, byH))));
+    // aim for rack tiles of about 50px — comfortable for fingers — even when the table must be smaller
+    const k = (tw: number) => Math.min(2.2, Math.max(1, 52 / tw));
+    let tw = Math.min(60, byW);
+    for (let i = 0; i < 3; i++) {
+      const byH = (H - chrome - (BOARD_ROWS + this.rackRows) * gap) / (1.32 * (BOARD_ROWS + this.rackRows * k(tw)));
+      tw = Math.max(16, Math.min(60, byW, byH));
+    }
+    tw = Math.floor(tw);
     this.tw = tw; this.th = Math.round(tw * 1.32); this.gap = gap;
+    this.rtw = Math.round(tw * k(tw)); this.rth = Math.round(this.rtw * 1.32);
+    this.rackCols = Math.max(10, Math.min(24, Math.floor((Math.min(W, BOARD_COLS * (tw + gap) + 60) - 50) / (this.rtw + gap))));
     const st = this.el.style;
     st.setProperty('--tw', tw + 'px');
     st.setProperty('--th', this.th + 'px');
+    st.setProperty('--rtw', this.rtw + 'px');
+    st.setProperty('--rth', this.rth + 'px');
     st.setProperty('--gap', gap + 'px');
     this.boardEl.style.setProperty('--cols', String(BOARD_COLS));
     this.boardEl.style.setProperty('--rows', String(BOARD_ROWS));
-    this.rackEl.style.setProperty('--rcols', String(RACK_COLS));
+    this.rackEl.style.setProperty('--rcols', String(this.rackCols));
   }
+
+  private size(area: Area) { return area === 'board' ? { w: this.tw, h: this.th } : { w: this.rtw, h: this.rth }; }
 
   private origin(area: Area) {
     const host = this.el.getBoundingClientRect();
@@ -211,7 +239,8 @@ export class GameView {
 
   private cellXY(area: Area, r: number, c: number) {
     const o = this.origin(area);
-    return { x: o.x + c * (this.tw + this.gap) + this.gap / 2, y: o.y + r * (this.th + this.gap) + this.gap / 2 };
+    const z = this.size(area);
+    return { x: o.x + c * (z.w + this.gap) + this.gap / 2, y: o.y + r * (z.h + this.gap) + this.gap / 2 };
   }
 
   // --------------------------------------------------------------- events --
@@ -250,7 +279,8 @@ export class GameView {
     this.prevBoard = new Set(s.board.map((p) => p.id));
     for (let i = Math.max(0, this.logSeen); i < s.log.length; i++) this.happened(s.log[i], s);
     this.logSeen = s.log.length;
-    if (this.myTurn && !this.wasMyTurn) sfx.myTurn();
+    if (this.myTurn && !this.wasMyTurn) { sfx.myTurn(); if (document.hidden) document.title = `● ${t().titleTurn} — ${t().appName}`; }
+    if (!this.myTurn) document.title = `${t().appName} — a tile rummy game`;
     this.wasMyTurn = this.myTurn;
 
     this.render();
@@ -294,7 +324,7 @@ export class GameView {
     const mine = this.myTurn;
     this.boardEl.classList.toggle('mine', mine);
     this.rackEl.style.setProperty('--rrows', String(this.rackRows));
-    this.rackEl.innerHTML = Array.from({ length: this.rackRows }, (_, r) => `<div class="ledge" style="top:${9 + (r + 1) * (this.th + this.gap) - 3}px"></div>`).join('');
+    this.rackEl.innerHTML = Array.from({ length: this.rackRows }, (_, r) => `<div class="ledge" style="top:${9 + (r + 1) * (this.rth + this.gap) - 3}px"></div>`).join('');
 
     // segment outlines while a turn is being built (mine, or the one I'm watching)
     const watching = board !== s.board;
@@ -334,6 +364,7 @@ export class GameView {
       el.style.setProperty('--pos', `translate(${pos.x}px, ${pos.y}px)`);
       const movable = pos.area === 'rack' || (mine && pos.area === 'board');
       el.classList.toggle('locked', !movable);
+      el.classList.toggle('onrack', pos.area === 'rack');
       el.classList.toggle('sel', this.selected.has(id));
       el.classList.toggle('hint', !!this.hint && this.hint.played.includes(id) && pos.area === 'rack');
       el.classList.toggle('ghosted', pos.area === 'board' && watching && !mine && !tableAtStart.has(id));
@@ -386,6 +417,8 @@ export class GameView {
           .reduce((a, g) => a + g.eval.value, 0);
         html += `<span class="sub${v >= s.rules.openingMin ? ' ok' : ''}">${esc(tt.openHint(v, s.rules.openingMin))}</span>`;
       }
+    } else if (this.client.host?.isWaitingOn()) {
+      html = `<span style="color:var(--warn)">${esc(tt.offlineWait(cur.name))}</span> <button class="btn sm" data-act="playFor" title="${esc(tt.playForTip)}">${icon('bot', 15)}${esc(tt.playFor(cur.name))}</button>`;
     } else html = esc(cur.kind === 'ai' ? tt.thinking(cur.name) : tt.theirTurn(cur.name));
     status.innerHTML = html;
     status.classList.toggle('mine', this.myTurn);
@@ -429,6 +462,8 @@ export class GameView {
       case 'lang': setLang(lang() === 'en' ? 'de' : 'en'); this.build(); this.render(); return;
       case 'sound': setMuted(!isMuted()); b.innerHTML = icon(isMuted() ? 'mute' : 'sound'); return;
       case 'react': this.reactionPicker(b); return;
+      case 'tiles': this.finishPicker(b); return;
+      case 'playFor': { const id = s?.players[s.turn].id; if (id) this.client.host?.playFor(id); return; }
       case 'sortRuns': this.sortRack('runs'); return;
       case 'sortGroups': this.sortRack('groups'); return;
       case 'next': this.client.host?.nextRound(); return;
@@ -473,12 +508,12 @@ export class GameView {
     // lay out row by row, with a gap between colors (runs) or numbers (groups) when it fits
     const bucket = (x: Tile) => (x.joker ? 99 : mode === 'runs' ? x.color : x.num);
     const buckets = new Set(ids.map(bucket)).size;
-    const withGaps = ids.length + buckets - 1 <= this.rackRows * RACK_COLS;
+    const withGaps = ids.length + buckets - 1 <= this.rackRows * this.rackCols;
     this.rackPos.clear();
     let r = 0, c = 0, prev: number | null = null;
     for (const x of ids) {
       if (withGaps && prev !== null && bucket(x) !== prev && c > 0) c++;
-      if (c >= RACK_COLS) { r++; c = 0; }
+      if (c >= this.rackCols) { r++; c = 0; }
       this.rackPos.set(x.id, { r, c });
       c++;
       prev = bucket(x);
@@ -506,7 +541,7 @@ export class GameView {
     if (onBoard && !this.myTurn) return;
     if (!onBoard && !this.myRack.includes(id)) return;
     const r = el.getBoundingClientRect();
-    this.drag = { id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, grabX: e.clientX - r.left, grabY: e.clientY - r.top, group: [id], active: false };
+    this.drag = { id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, grabX: e.clientX - r.left, grabY: e.clientY - r.top, w: r.width, h: r.height, group: [id], active: false };
     e.preventDefault();
   };
 
@@ -526,7 +561,7 @@ export class GameView {
     d.group.forEach((id, i) => {
       const el = this.tileEls.get(id);
       if (!el) return;
-      const x = e.clientX - host.left - d.grabX + (i - idx) * (this.tw + this.gap);
+      const x = e.clientX - host.left - d.grabX + (i - idx) * (d.w + this.gap);
       const y = e.clientY - host.top - d.grabY;
       el.style.setProperty('--pos', `translate(${x}px, ${y}px) rotate(${(i - idx) * 0.6 + 1.5}deg) scale(1.06)`);
     });
@@ -540,8 +575,8 @@ export class GameView {
     for (const id of d.group) this.tileEls.get(id)?.classList.remove('dragging');
     const idx = d.group.indexOf(d.id);
     // where the first tile of the line lands
-    const left = e.clientX - d.grabX - idx * (this.tw + this.gap) + this.tw / 2;
-    const top = e.clientY - d.grabY + this.th / 2;
+    const left = e.clientX - d.grabX - idx * (d.w + this.gap) + d.w / 2;
+    const top = e.clientY - d.grabY + d.h / 2;
     const target = this.hitTest(left, top);
     if (!target || !this.drop(target.area, target.r, target.c, d.group)) {
       for (const id of d.group) { const el = this.tileEls.get(id); el?.classList.add('shake'); setTimeout(() => el?.classList.remove('shake'), 400); }
@@ -568,10 +603,11 @@ export class GameView {
       const box = (area === 'board' ? this.boardEl : this.rackEl).getBoundingClientRect();
       if (x < box.left - 20 || x > box.right + 20 || y < box.top - 20 || y > box.bottom + 20) continue;
       const pad = area === 'board' ? 8 : 10;
-      const c = Math.floor((x - box.left - pad) / (this.tw + this.gap));
-      const r = Math.floor((y - box.top - (area === 'board' ? 8 : 9)) / (this.th + this.gap));
+      const z = this.size(area);
+      const c = Math.floor((x - box.left - pad) / (z.w + this.gap));
+      const r = Math.floor((y - box.top - (area === 'board' ? 8 : 9)) / (z.h + this.gap));
       const rows = area === 'board' ? BOARD_ROWS : this.rackRows;
-      const cols = area === 'board' ? BOARD_COLS : RACK_COLS;
+      const cols = area === 'board' ? BOARD_COLS : this.rackCols;
       return { area, r: Math.max(0, Math.min(rows - 1, r)), c: Math.max(0, Math.min(cols - 1, c)) };
     }
     return null;
@@ -587,7 +623,7 @@ export class GameView {
       return false;
     }
     if (area === 'board' && !this.draft) return false;
-    const cols = area === 'board' ? BOARD_COLS : RACK_COLS;
+    const cols = area === 'board' ? BOARD_COLS : this.rackCols;
     const n = ids.length;
     if (n > cols) return false;
     c = Math.min(c, cols - n);
@@ -721,6 +757,31 @@ export class GameView {
       const b = (ev.target as HTMLElement).closest('button');
       if (b) this.client.send({ t: 'react', emoji: b.textContent! });
       pop.remove();
+    });
+    this.el.appendChild(pop);
+    setTimeout(() => document.addEventListener('pointerdown', (ev) => { if (!pop.contains(ev.target as Node)) pop.remove(); }, { once: true }), 0);
+  }
+
+  private finishPicker(anchor: HTMLElement) {
+    this.el.querySelector('.popover')?.remove();
+    const host = this.el.getBoundingClientRect();
+    const r = anchor.getBoundingClientRect();
+    const pop = document.createElement('div');
+    pop.className = 'popover finishes';
+    const sample: Tile = { id: -1, color: 0, num: 13, joker: false, star: false };
+    pop.innerHTML = FINISHES.map((f, i) => `<button class="${f}${f === finish() ? ' on' : ''}" data-finish="${f}" title="${esc(t().finishes[i])}">
+      <span class="${tileClass(sample)}" style="position:relative;--tw:30px;--th:40px;--pos:none">${tileHTML(sample)}</span><small>${esc(t().finishes[i])}</small></button>`).join('');
+    pop.style.right = Math.max(8, host.right - r.right) + 'px';
+    pop.style.top = r.bottom - host.top + 8 + 'px';
+    pop.addEventListener('click', (ev) => {
+      const b = (ev.target as HTMLElement).closest('[data-finish]') as HTMLElement | null;
+      if (!b) return;
+      for (const f of FINISHES) if (f) this.el.classList.remove(f);
+      const f = b.dataset.finish!;
+      setFinish(f);
+      if (f) this.el.classList.add(f);
+      pop.remove();
+      sfx.place();
     });
     this.el.appendChild(pop);
     setTimeout(() => document.addEventListener('pointerdown', (ev) => { if (!pop.contains(ev.target as Node)) pop.remove(); }, { once: true }), 0);
