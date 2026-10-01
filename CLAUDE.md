@@ -31,3 +31,17 @@ smiley. (The local folder name `RummiKub` is just a folder.)
 American English UI strings (German via `src/ui/i18n.ts`), Lucide icons (web), every control has
 a tooltip (`title`), buttons are buttons (accent = primary, bordered = everything else), one
 declared control height token `--control-h`.
+
+## Current state (2026-09-30)
+- Live: https://herzer.github.io/rollover/ (repo `herzer/rollover`, public; push to `main` deploys).
+- Done: engine + tests, 3 AI levels (worker), online play, reload recovery, EN/DE, star tiles,
+  six tile finishes (`src/ui/tile-styles.css`, per-player palette button), dev panel ⌘⇧D (dev only).
+- Waiting on: tile pick — https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z (`picks/rollover-tiles`);
+  then set `DEFAULT_FINISH` in `src/ui/game.ts` (and drop the switcher if she answers "one tile").
+  The picker page is generated: `python3 scripts/build-tile-picker.py`.
+- Open risk: no TURN relay — a very strict network (some mobile carriers) can block the direct link.
+
+## Testing tips
+- Two players in one browser: open the invite link with `?fresh` before the `#` in a second tab.
+- `?lab` (dev server) shows the six tile finishes; ⌘⇧D in a game opens the dev panel.
+- `BENCH=1 npx vitest run tests/bench.test.ts` times the hard computer player.

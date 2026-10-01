@@ -95,6 +95,19 @@
     <p class="sub">You asked for a Rummikub you can play with your mom in Germany, also against the computer, with your family’s rollover rule (13 is followed by 1) and something that makes it more exciting than the classic. I am already building the parts that don’t depend on these answers — the rules engine, the table, the computer player. These four answers steer the rest.</p>
   </header>
 
+  <div class="ledger" style="border-color:var(--ok)">
+    <h2 style="color:var(--ok)">Built — 2026-09-30</h2>
+    <p><b>Play it:</b> <a href="https://herzer.github.io/rollover/">herzer.github.io/rollover</a> — the game is called <b>Rollover</b> (no trademarked name anywhere).</p>
+    <ul>
+      <li><b>1 · A web link</b> → built. Public repo <code>herzer/rollover</code>, deployed to GitHub Pages on every push. “Play with family online” shows a link and a 6‑letter code; Mom taps it and is in. Your browser hosts the game and checks every move. A reload drops nobody: the host resumes, guests rejoin. Not built: a relay for very strict networks (only if a direct connection ever fails).</li>
+      <li><b>2 · Each player picks English or German</b> → built. Every message exists in both; the DE/EN button switches only your screen.</li>
+      <li><b>3 · Rollover on by default, with a switch</b> → built. Read exactly as the box below says (12‑13‑1, max 13 tiles, a 1 is worth 1). The computer players know the rule too.</li>
+      <li><b>4 · Star tiles</b> → built. Four ★ tiles (one per color); laying one fires Burden, Peek, or Spotlight with a card that explains it. Switch in setup.</li>
+      <li><b>Your note: beautiful 3D tiles</b> → six finishes built; you choose on the <a href="https://claude.ai/artifact/NT1NA1ii3dxQu8N4koei6Z">tile picker</a>. Each player can also switch on their own screen (palette button).</li>
+      <li><b>Also in:</b> computer players (Easy, Medium, Hard — Hard rearranges the table), hint with “Show me”, live view of the other player’s moves, emoji reactions, Rollover! banner, confetti, sounds, undo, sorting, match score and family scoreboard, bigger rack tiles on iPad.</li>
+    </ul>
+  </div>
+
   <div class="ledger assume">
     <h2>The one rule this rests on — worth a yes or no first</h2>
     <p><b>How I read your rollover rule.</b> In a run (same color, consecutive numbers), 13 may be followed by 1, so <b>12‑13‑1</b> and <b>13‑1‑2‑3</b> are valid runs. A run can start anywhere on the circle, but it is never longer than 13 tiles. Groups (same number, different colors) are unchanged. <b>A 1 is always worth 1 point</b> — for the 30‑point opening and for the end‑of‑round count. If any part of this is not how you and Mom play, say so in the note under question 3.</p>
