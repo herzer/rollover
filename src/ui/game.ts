@@ -452,7 +452,11 @@ export class GameView {
       return `<div class="seg ok rackseg${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.rtw + this.gap) - this.gap + 6}px;height:${this.rth + 6}px"></div>`;
     }).join('');
     if (!this.drag?.active) {
-      this.overlay.innerHTML = okSegs.map((g) => {
+      const spots = this.hint && mine ? this.hint.board.filter((p) => this.hint!.played.includes(p.id)).map((p) => {
+        const xy = this.cellXY('board', p.r, p.c);
+        return `<div class="ghost hintspot" style="left:${xy.x - 2}px;top:${xy.y - 2}px;width:${this.tw + 4}px;height:${this.th + 4}px"></div>`;
+      }).join('') : '';
+      this.overlay.innerHTML = spots + okSegs.map((g) => {
         const xy = this.cellXY('rack', g.r, g.c);
         const label = `${g.eval.kind === 'group' ? t().kindGroup : t().kindRun} · ${g.eval.value}`;
         return mine
@@ -607,11 +611,30 @@ export class GameView {
       case 'sortGroups': this.sortRack('groups'); return;
       case 'next': this.client.host?.nextRound(); return;
       case 'closeModal': this.closeModal(); return;
-      case 'showMe': if (this.hint && this.myTurn) { this.draft = this.hint.board.map((p) => ({ ...p })); this.hint = null; this.sendDraft(); this.render(); this.clearToast(); } return;
+      case 'showMe': {
+        if (!this.hint || !this.myTurn) return;
+        const played = this.hint.played;
+        this.draft = this.hint.board.map((p) => ({ ...p }));
+        this.hint = null;
+        this.sendDraft();
+        this.render();
+        sfx.place();
+        // what changed glows, and the next step is right there in the message
+        for (const id of played) {
+          const el = this.tileEls.get(id);
+          if (!el) continue;
+          el.classList.add('drawn', 'boing');
+          setTimeout(() => el.classList.remove('drawn', 'boing'), 5000);
+        }
+        this.toast(t().laidForYou(played.length), false,
+          `<button class="btn sm" data-act="undo" title="${esc(t().undoTip)}">${icon('undo', 15)}${t().undo}</button><button class="btn sm primary" data-act="done" title="${esc(t().doneTip)}">${icon('check', 15)}${t().done}</button>`, true);
+        return;
+      }
     }
     if (!s || !this.myTurn) return;
     switch (a) {
       case 'undo':
+        this.clearToast();
         this.draft = s.board.map((p) => ({ ...p }));
         this.selected.clear();
         this.sendDraft();
@@ -620,7 +643,7 @@ export class GameView {
       case 'hint': {
         this.hint = chooseMove(s, this.seat, 3, 80000);
         if (!this.hint) this.toast(t().hintNone);
-        else this.toast(t().hintSome(this.hint.played.length), false, `<button class="btn sm primary" data-act="showMe" title="${esc(t().showMeTip)}">${t().showMe}</button>`);
+        else this.toast(t().hintSome(this.hint.played.length), false, `<button class="btn sm primary" data-act="showMe" title="${esc(t().showMeTip)}">${t().showMe}</button>`, true);
         this.render();
         break;
       }
@@ -634,6 +657,7 @@ export class GameView {
         break;
       case 'done':
         if (!this.draft) return;
+        this.clearToast();
         this.selected.clear();
         this.client.send({ t: 'commit', board: this.draft, seq: s.seq });
         this.sentSeq = s.seq;
@@ -979,15 +1003,18 @@ export class GameView {
 
   private toastEl: HTMLElement | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
-  private toast(text: string, warn = false, extra = '') {
+  private toast(text: string, warn = false, extra = '', sticky = false) {
     this.clearToast();
     const el = document.createElement('div');
     el.className = 'toast' + (warn ? ' warn' : '');
     el.innerHTML = `<span>${esc(text)}</span>${extra ? ' ' + extra : ''}`;
     if (extra) el.style.display = 'flex', el.style.gap = '10px', el.style.alignItems = 'center';
     this.el.appendChild(el);
+    // sit at the bottom of the table — new melds fill it from the top, and the rack stays visible
+    const host = this.el.getBoundingClientRect(), bd = this.boardEl.getBoundingClientRect();
+    el.style.top = `${Math.max(64, bd.bottom - host.top - el.offsetHeight - 22)}px`;
     this.toastEl = el;
-    this.toastTimer = setTimeout(() => this.clearToast(), extra ? 9000 : 3800);
+    if (!sticky) this.toastTimer = setTimeout(() => this.clearToast(), extra ? 9000 : 3800);
   }
   private clearToast() { this.toastEl?.remove(); this.toastEl = null; if (this.toastTimer) clearTimeout(this.toastTimer); }
 

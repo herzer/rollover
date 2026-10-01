@@ -262,7 +262,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 @keyframes shake { 25% { margin-left: -5px; } 75% { margin-left: 5px; } }
 
 /* ---------- overlays ---------- */
-.toast { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); background: #1f2328; color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: min(560px, 90vw); text-align: center; z-index: 80; box-shadow: 0 8px 20px rgba(0,0,0,.25); animation: toastIn .25s; }
+.toast { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); background: #1f2328; color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 700; max-width: min(560px, 90vw); text-align: center; z-index: 80; box-shadow: 0 8px 20px rgba(0,0,0,.25); animation: toastIn .25s; }
 .toast.warn { background: var(--warn); }
 @keyframes toastIn { from { transform: translate(-50%, 10px); opacity: 0; } }
 .banner { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none;
@@ -371,3 +371,9 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 
 .tile .jk svg.kface { stroke: none !important; width: 100%; height: auto; }
 .tile.joker .jk { width: 74%; filter: drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 1px rgba(80,40,0,.25)); }
+
+.ghost.hintspot { border: 2.5px dashed var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); animation: spot 1.1s ease-in-out infinite; }
+@keyframes spot { 50% { transform: scale(1.08); box-shadow: 0 0 18px color-mix(in srgb, var(--gold) 70%, transparent); } }
+.tile.hint { animation: hintbob .9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--gold), 0 0 18px 4px color-mix(in srgb, var(--gold) 60%, transparent) !important; }
+.toast .btn.sm { flex: none; }
+.toast .btn:not(.primary) { color: var(--ink); }
