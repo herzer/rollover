@@ -1,5 +1,6 @@
 import './ui/styles.css';
-import { Client, newCode } from './net/client';
+import './ui/tile-styles.css';
+import { Client, newCode, knownGame } from './net/client';
 import { Host } from './net/host';
 import { GameView, tileClass, tileHTML } from './ui/game';
 import { t, lang, setLang } from './ui/i18n';
@@ -112,6 +113,7 @@ function home(message = '') {
 function connect(c: Client) {
   leaveClient();
   client = c;
+  try { if (c.isHost && c.code) sessionStorage.setItem('rollover.hosting', '1'); } catch { /* storage blocked */ }
   offClient = c.on((e) => { if (e.t === 'update') route(); });
   if (c.code && c.isHost) history.replaceState(null, '', location.pathname + location.search);
   route();
@@ -125,6 +127,7 @@ function leaveClient() {
 
 function leave() {
   const wasGuest = client && !client.isHost;
+  try { sessionStorage.removeItem('rollover.hosting'); } catch { /* storage blocked */ }
   leaveClient();
   if (wasGuest) history.replaceState(null, '', location.pathname + location.search);
   home();
@@ -212,6 +215,29 @@ function lobby(c: Client) {
   };
 }
 
-document.documentElement.lang = lang();
-window.addEventListener('hashchange', () => { if (!client) home(); });
-home();
+/** Dev-only tile lab: the six finishes on felt and on the rack, for judging the look. */
+function lab() {
+  const mk = (color: 0 | 1 | 2 | 3, num: number, joker = false, star = false): Tile => ({ id: -1, color, num, joker, star });
+  const row = (tiles: Tile[], tw: number) => tiles.map((x) => `<span class="${tileClass(x)}" style="position:relative;--tw:${tw}px;--th:${Math.round(tw * 1.32)}px;--pos:none">${tileHTML(x)}</span>`).join('');
+  const set = [mk(0, 12), mk(0, 13), mk(0, 1, false, true), mk(1, 7), mk(2, 7), mk(3, 7), mk(0, 0, true)];
+  const only = new URLSearchParams(location.search).get('lab');
+  const finishes = ['', 'ts-porcelain', 'ts-jade', 'ts-wood', 'ts-glass', 'ts-clay'].filter((f) => !only || only === 'all' || f === only || (only === 'ivory' && f === ''));
+  app.innerHTML = `<div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:20px">${finishes.map((f) => `
+    <div class="${f}" style="display:flex;flex-direction:column;gap:10px">
+      <div class="board" style="width:auto;height:auto;padding:26px 24px 34px;display:flex;gap:7px">${row(set, 58)}</div>
+      <div class="rack" style="width:auto;height:auto;padding:12px 18px 18px;display:flex;gap:5px">${row(set, 40)}</div></div>`).join('')}</div>`;
+}
+
+function boot() {
+  // a reload drops nobody out of the game: the host picks its game back up, a guest rejoins
+  const code = joinCodeFromUrl();
+  const name = getName();
+  const saved = Host.load();
+  let hosting = false;
+  try { hosting = sessionStorage.getItem('rollover.hosting') === '1'; } catch { /* storage blocked */ }
+  if (!code && hosting && saved?.lobby.code) { connect(Client.host(saved.lobby.seats[0]?.name ?? name, saved.lobby.code, saved)); return; }
+  if (code && name && knownGame(code)) { connect(Client.join(code, name, new URLSearchParams(location.search).has('fresh'))); return; }
+  home();
+}
+
+if (import.meta.env.DEV && location.search.includes('lab')) lab(); else boot();

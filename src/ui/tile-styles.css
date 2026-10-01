@@ -1,0 +1,127 @@
+/* Six tile finishes. The base `.tile` rules in styles.css are finish 1, Ivory.
+   A finish is chosen by a class on any ancestor: .ts-porcelain, .ts-jade, .ts-wood, .ts-glass, .ts-clay. */
+
+/* ---------- 2 · Porcelain: white glazed ceramic, gold hairline, enamel numbers ---------- */
+.ts-porcelain .tile {
+  background:
+    radial-gradient(90% 55% at 30% 6%, #ffffff 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(170deg, #ffffff 0%, #f4f6f9 50%, #e3e7ee 100%);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 0 -2px 3px rgba(110,125,150,.28),
+    0 calc(var(--tw) * .04) 0 #e7eaf0,
+    0 calc(var(--tw) * .07) 0 #cfd5df,
+    0 calc(var(--tw) * .095) 0 #aab3c2,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .18) rgba(15,20,35,.38);
+}
+.ts-porcelain .tile::before {
+  inset: 6%;
+  background: none;
+  border: 1px solid rgba(196,154,60,.7);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
+}
+.ts-porcelain .tile::after {
+  background:
+    radial-gradient(40% 22% at 30% 14%, rgba(255,255,255,.95), rgba(255,255,255,0) 100%),
+    linear-gradient(158deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 82%, rgba(170,185,210,.25) 100%);
+}
+.ts-porcelain .tile .n {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 55%, #fff) 0%, var(--tc) 30%, var(--tc) 70%, color-mix(in srgb, var(--tc) 75%, #000) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0.5px rgba(0,0,0,.18));
+}
+
+/* ---------- 3 · Two-tone: ivory face on a jade back, like a mahjong tile ---------- */
+.ts-jade .tile {
+  border-radius: calc(var(--tw) * .13);
+  background:
+    radial-gradient(130% 70% at 28% 8%, #fffefa 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(170deg, #fffcf2 0%, #f6edd8 60%, #eadcbc 100%);
+  box-shadow:
+    inset 0 1.5px 0 #fff,
+    inset 0 -2px 2px rgba(160,130,80,.3),
+    0 calc(var(--tw) * .035) 0 #e9dcbd,
+    0 calc(var(--tw) * .06) 0 #f7efdc,
+    0 calc(var(--tw) * .075) 0 #8fe0c9,
+    0 calc(var(--tw) * .11) 0 #2fb898,
+    0 calc(var(--tw) * .15) 0 #17967b,
+    0 calc(var(--tw) * .19) 0 #0e765f,
+    0 calc(var(--tw) * .215) 0 #0a5b49,
+    0 calc(var(--tw) * .26) calc(var(--tw) * .2) rgba(5,20,15,.5);
+}
+.ts-jade .tile::before { inset: 8% 9% 10%; }
+.ts-jade .tile .n {
+  font-weight: 800;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 65%, #000) 0%, var(--tc) 40%, color-mix(in srgb, var(--tc) 85%, #fff) 100%);
+  -webkit-background-clip: text; background-clip: text;
+}
+
+/* ---------- 4 · Maple: warm wood grain, carved numbers ---------- */
+.ts-wood .tile {
+  background:
+    radial-gradient(120% 60% at 30% 5%, rgba(255,240,210,.55) 0%, rgba(255,240,210,0) 60%),
+    repeating-linear-gradient(97deg, rgba(120,70,20,.0) 0px, rgba(120,70,20,.07) 2px, rgba(120,70,20,0) 5px, rgba(120,70,20,.05) 9px, rgba(120,70,20,0) 13px),
+    radial-gradient(160% 40% at 70% 60%, rgba(150,90,30,.12), rgba(150,90,30,0) 70%),
+    linear-gradient(170deg, #f3d9a8 0%, #e6c088 55%, #d6a76a 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,245,225,.9),
+    inset 0 -2px 2px rgba(110,60,15,.35),
+    0 calc(var(--tw) * .04) 0 #cf9d5e,
+    0 calc(var(--tw) * .07) 0 #b5814a,
+    0 calc(var(--tw) * .095) 0 #8f6232,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .17) rgba(40,20,5,.42);
+}
+.ts-wood .tile::before { background: none; box-shadow: none; }
+.ts-wood .tile::after { background: linear-gradient(120deg, rgba(255,250,235,.45) 0%, rgba(255,255,255,0) 32%); }
+.ts-wood .tile .n {
+  /* paint pressed into a carved groove: dark inner wall above, lit lip below */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 50%, #2a1505) 0%, color-mix(in srgb, var(--tc) 88%, #2a1505) 45%, var(--tc) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 1px 0 rgba(255,236,200,.85)) drop-shadow(0 -1px 0 rgba(70,35,5,.45));
+}
+.ts-wood .tile.c3 { --tc: #1d140c; }
+
+/* ---------- 5 · Glass: frosted acrylic with glowing numbers ---------- */
+.ts-glass .tile {
+  background:
+    radial-gradient(120% 60% at 25% 0%, rgba(255,255,255,.95) 0%, rgba(255,255,255,0) 60%),
+    linear-gradient(165deg, rgba(255,255,255,.9) 0%, rgba(240,248,255,.8) 55%, rgba(220,236,248,.76) 100%);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2) brightness(1.15);
+  backdrop-filter: blur(10px) saturate(1.2) brightness(1.15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.85),
+    inset 0 2px 0 rgba(255,255,255,.95),
+    inset 0 -3px 6px rgba(120,170,210,.35),
+    0 calc(var(--tw) * .04) 0 rgba(220,238,250,.75),
+    0 calc(var(--tw) * .075) 0 rgba(160,200,225,.65),
+    0 calc(var(--tw) * .14) calc(var(--tw) * .22) rgba(10,40,60,.32);
+}
+.ts-glass .tile::before { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); }
+.ts-glass .tile::after {
+  background:
+    linear-gradient(150deg, rgba(255,255,255,.9) 0%, rgba(255,255,255,.15) 22%, rgba(255,255,255,0) 34%),
+    linear-gradient(330deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 18%);
+}
+.ts-glass .tile .n {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 60%, #fff) 0%, var(--tc) 55%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--tc) 55%, transparent)) drop-shadow(0 1px 0 rgba(255,255,255,.8));
+}
+
+/* ---------- 6 · Clay: soft, pillowy, matte — numbers stand out in relief ---------- */
+.ts-clay .tile {
+  border-radius: calc(var(--tw) * .24);
+  background: radial-gradient(130% 120% at 32% 22%, #fffbf4 0%, #f5ebdc 52%, #e6d6be 100%);
+  box-shadow:
+    inset calc(var(--tw) * .05) calc(var(--tw) * .06) calc(var(--tw) * .12) rgba(255,255,255,.95),
+    inset calc(var(--tw) * -.05) calc(var(--tw) * -.07) calc(var(--tw) * .14) rgba(150,110,60,.28),
+    0 calc(var(--tw) * .06) calc(var(--tw) * .08) rgba(80,55,20,.22),
+    0 calc(var(--tw) * .16) calc(var(--tw) * .28) rgba(60,40,10,.28);
+}
+.ts-clay .tile::before, .ts-clay .tile::after { content: none; }
+.ts-clay .tile .n {
+  background: none;
+  -webkit-text-fill-color: var(--tc);
+  /* raised: lit from the upper left, casting a soft shadow down-right */
+  filter: drop-shadow(-1px -1px 0 rgba(255,255,255,.75)) drop-shadow(1px 2px 1.5px rgba(60,35,10,.35));
+}

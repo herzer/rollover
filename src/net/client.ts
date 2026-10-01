@@ -26,14 +26,19 @@ export function newCode(): string {
 export function deviceId(code: string | null, fresh = false): string {
   const key = 'rollover.id.' + (code ?? 'local');
   const make = () => 'p-' + Math.random().toString(36).slice(2, 10);
-  if (fresh) return make();
   try {
-    const existing = sessionStorage.getItem(key) || localStorage.getItem(key);
+    // ?fresh (for testing two players in one browser) keeps the id to this tab only
+    const existing = sessionStorage.getItem(key) || (fresh ? null : localStorage.getItem(key));
     const id = existing || make();
     sessionStorage.setItem(key, id);
-    localStorage.setItem(key, id);
+    if (!fresh) localStorage.setItem(key, id);
     return id;
   } catch { return make(); }
+}
+
+/** True when this browser has joined the game with this code before. */
+export function knownGame(code: string): boolean {
+  try { return !!(sessionStorage.getItem('rollover.id.' + code) || localStorage.getItem('rollover.id.' + code)); } catch { return false; }
 }
 
 export class Client {

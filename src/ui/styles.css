@@ -191,35 +191,51 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
     inset 1.5px 0 0 rgba(255,255,255,.7),
     inset -1.5px 0 1px rgba(160,130,80,.25),
     inset 0 -2.5px 2px rgba(160,130,80,.35),
-    0 calc(var(--tw) * .055) 0 #d7c9a8,
-    0 calc(var(--tw) * .085) 0 #b6a581,
-    0 calc(var(--tw) * .12) calc(var(--tw) * .16) rgba(20,15,5,.38);
+    0 calc(var(--tw) * .04) 0 #e2d6ba,
+    0 calc(var(--tw) * .07) 0 #cdbd98,
+    0 calc(var(--tw) * .095) 0 #ad9b74,
+    0 calc(var(--tw) * .13) calc(var(--tw) * .17) rgba(20,15,5,.4);
   display: grid; place-items: center;
   pointer-events: auto; cursor: grab;
   touch-action: none; user-select: none; -webkit-user-select: none;
   transition: transform .32s cubic-bezier(.2,.8,.2,1), box-shadow .2s, filter .2s;
   will-change: transform;
 }
+.tile::before {
+  /* the slightly recessed face inside the raised rim */
+  content: ""; position: absolute; inset: 7% 8% 9%;
+  border-radius: calc(var(--tw) * .11);
+  background: linear-gradient(180deg, rgba(120,95,50,.07) 0%, rgba(255,255,255,.25) 60%, rgba(255,255,255,.55) 100%);
+  box-shadow: inset 0 1px 2px rgba(120,90,40,.22), inset 0 -1px 0 rgba(255,255,255,.8), 0 1px 0 rgba(255,255,255,.7);
+  pointer-events: none;
+}
+.tile::after {
+  /* a soft gloss streak, as if lit from the upper left */
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(118deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 26%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 78%, rgba(255,255,255,.18) 100%);
+  pointer-events: none;
+}
 .tile .n {
+  position: relative; z-index: 1;
   font: 800 calc(var(--tw) * .58)/1 "Baloo 2", "Nunito", sans-serif;
-  color: var(--tc);
   margin-top: calc(var(--tw) * .06);
-  /* engraved: light below the stroke, shade above it */
-  text-shadow: 0 1px 0 rgba(255,255,255,.95), 0 -1px 0 rgba(0,0,0,.18);
   letter-spacing: -.03em;
+  /* lacquered paint in an engraved groove: darker at the top lip, brighter below */
+  color: var(--tc);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 70%, #000) 0%, var(--tc) 38%, color-mix(in srgb, var(--tc) 82%, #fff) 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.95)) drop-shadow(0 -.5px 0 rgba(60,40,10,.35));
   pointer-events: none;
 }
 .tile.c0 { --tc: var(--t-red); }
 .tile.c1 { --tc: var(--t-blue); }
 .tile.c2 { --tc: var(--t-orange); }
 .tile.c3 { --tc: var(--t-black); }
-.tile .jk { width: 62%; color: var(--tc); filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 -1px 0 rgba(0,0,0,.15)); pointer-events: none; display: grid; place-items: center; }
+.tile .jk { position: relative; z-index: 1; width: 62%; color: var(--tc); filter: drop-shadow(0 1px 0 rgba(255,255,255,.9)) drop-shadow(0 -1px 0 rgba(0,0,0,.15)); pointer-events: none; display: grid; place-items: center; }
 .tile .jk svg { width: 100%; height: auto; }
-.tile.joker { background:
-    radial-gradient(130% 70% at 28% 8%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 55%),
-    conic-gradient(from 210deg at 50% 60%, #fff4f4, #f1f5ff, #fff6e6, #f3f3f3, #fff4f4); }
+.tile.joker .jk svg { stroke: url(#crownInk); }
 .tile .st {
-  position: absolute; top: calc(var(--tw) * .05); right: calc(var(--tw) * .07);
+  position: absolute; z-index: 2; top: calc(var(--tw) * .05); right: calc(var(--tw) * .07);
   font-size: calc(var(--tw) * .26); line-height: 1; color: var(--gold);
   text-shadow: 0 0 4px rgba(233,176,36,.7), 0 1px 0 rgba(120,80,0,.4);
   animation: twinkle 2.4s ease-in-out infinite;

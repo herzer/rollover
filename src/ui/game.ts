@@ -336,7 +336,7 @@ export class GameView {
       el.classList.toggle('locked', !movable);
       el.classList.toggle('sel', this.selected.has(id));
       el.classList.toggle('hint', !!this.hint && this.hint.played.includes(id) && pos.area === 'rack');
-      el.classList.toggle('ghosted', watching && !mine && !tableAtStart.has(id));
+      el.classList.toggle('ghosted', pos.area === 'board' && watching && !mine && !tableAtStart.has(id));
       el.title = '';
     }
 
