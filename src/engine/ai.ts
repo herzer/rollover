@@ -282,37 +282,62 @@ export function hintStep(state: GameState, seat: number, draft: Placed[], budget
   return melds ? stepToward(melds, draft, tiles, rules) : null;
 }
 
-/** The first move that brings the table closer to `melds`: finish what is started first. */
+/** The next step toward `melds` (the planned table) from `draft` (the table now), in the order a person would play:
+ *  a rack tile onto a meld already started, then a new meld straight from the rack, then rearranging the table.
+ *  A tile only goes next to a line made entirely of its planned meld's tiles — never onto another meld that merely
+ *  holds one of them (2026-10-02: the orange 9 parked after red 6-10 "does not seem possible"). A tile is only
+ *  taken off the table when what stays behind is still legal, and pieces that appear by themselves once a tile is
+ *  lifted out (6-7-8 and 10-11-12 of 6-…-12) are not steps. */
 export function stepToward(melds: number[][], draft: Placed[], tiles: Tile[], rules: Pick<Rules, 'rollover'>): Step | null {
   const segs = segments(draft);
   const segOf = new Map<number, number>();
   segs.forEach((g, i) => g.ids.forEach((id) => segOf.set(id, i)));
   const occupied = new Set(draft.map((p) => cellKey(p.r, p.c)));
-  const ranked = melds.map((m) => {
-    const tally = new Map<number, number>();
-    for (const id of m) { const i = segOf.get(id); if (i !== undefined) tally.set(i, (tally.get(i) ?? 0) + 1); }
-    let best = -1, overlap = 0;
-    for (const [i, n] of tally) if (n > overlap) { best = i; overlap = n; }
-    return { m, best, overlap };
-  }).filter((x) => !(x.overlap === x.m.length && segs[x.best].ids.length === x.m.length))
-    .sort((a, b) => b.overlap - a.overlap);
-  for (const { m, best, overlap } of ranked) {
+  const legal = (ids: number[]) => ids.length === 0 || evalMeld(ids.map((id) => tiles[id]), rules).ok;
+  // can tile `id` leave its line on the table? (the parts left on either side must each be legal)
+  const canLeave = (id: number) => {
+    const i = segOf.get(id);
+    if (i === undefined) return true;                       // a rack tile
+    const ids = segs[i].ids, k = ids.indexOf(id);
+    return legal(ids.slice(0, k)) && legal(ids.slice(k + 1));
+  };
+  type Cand = Step & { rank: number; size: number };
+  const cands: Cand[] = [];
+  for (const m of melds) {
+    const inM = new Set(m);
+    // already on the table as it should be, or a piece that will appear by itself inside a longer line
+    const home = segs.find((g) => m.every((id) => g.ids.includes(id)));
+    if (home) {
+      const k = home.ids.indexOf(m[0]);
+      const run = home.ids.slice(Math.min(...m.map((id) => home.ids.indexOf(id))), Math.max(...m.map((id) => home.ids.indexOf(id))) + 1);
+      if (run.length === m.length && k >= 0) continue;
+    }
     const e = evalMeld(m.map((id) => tiles[id]), rules);
     const order = e.ok ? e.order.map((t) => t.id) : m;
-    if (overlap === 0) {
-      const spot = findSpot(occupied, m.length);
-      if (spot) return { id: order[0], r: spot.r, c: spot.c };
+    // a started part of this meld: a line made only of its tiles
+    const started = segs.filter((g) => g.ids.every((id) => inM.has(id))).sort((a, b) => b.ids.length - a.ids.length)[0];
+    if (started) {
+      const inD = new Set(started.ids);
+      const lo = Math.min(...order.map((id, i) => (inD.has(id) ? i : Infinity)));
+      for (const id of order) {
+        if (inD.has(id) || !canLeave(id)) continue;
+        const c = order.indexOf(id) < lo ? started.c - 1 : started.c + started.ids.length;
+        if (c < 0 || c >= BOARD_COLS || occupied.has(cellKey(started.r, c))) continue;
+        cands.push({ id, r: started.r, c, rank: segOf.has(id) ? 2 : 0, size: started.ids.length });
+        break;
+      }
       continue;
     }
-    const D = segs[best];
-    const inD = new Set(D.ids);
-    const lo = Math.min(...order.map((id, i) => (inD.has(id) ? i : Infinity)));
-    for (const id of order) {
-      if (inD.has(id)) continue;
-      const c = order.indexOf(id) < lo ? D.c - 1 : D.c + D.ids.length;
-      if (c < 0 || c >= BOARD_COLS || occupied.has(cellKey(D.r, c))) continue;
-      return { id, r: D.r, c };
-    }
+    // a new meld, in a free spot: a rack tile first, else a table tile that can leave its line
+    const spot = findSpot(occupied, m.length);
+    if (!spot) continue;
+    const fromRack = order.find((id) => !segOf.has(id));
+    const first = fromRack ?? order.find((id) => canLeave(id));
+    if (first === undefined) continue;
+    const allRack = order.every((id) => !segOf.has(id));
+    cands.push({ id: first, r: spot.r, c: spot.c, rank: allRack ? 1 : 3, size: 0 });
   }
-  return null;
+  cands.sort((a, b) => a.rank - b.rank || b.size - a.size);
+  const best = cands[0];
+  return best ? { id: best.id, r: best.r, c: best.c } : null;
 }
