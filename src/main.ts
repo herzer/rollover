@@ -181,6 +181,9 @@ function lobby(c: Client) {
         <h2>${tt.rules}</h2>
         <label class="switch" title="${esc(tt.rolloverTip)}"><input type="checkbox" data-rule="rollover" ${L.rules.rollover ? 'checked' : ''} ${host ? '' : 'disabled'}><span><b>${tt.rolloverRule}</b><br><span class="msg">${tt.rolloverTip}</span></span></label>
         <label class="switch" title="${esc(tt.starsTip)}"><input type="checkbox" data-rule="stars" ${L.rules.stars ? 'checked' : ''} ${host ? '' : 'disabled'}><span><b>${tt.starsRule}</b><br><span class="msg">${tt.starsTip}</span></span></label>
+        <div class="rulerow"><span><b>${tt.turnTimeRule}</b><br><span class="msg">${tt.turnTimeTip}</span></span>
+          <select class="field" data-rule="turnSeconds" title="${esc(tt.turnTimeTip)}" ${host ? '' : 'disabled'}>
+            ${[0, 180, 120, 60, 30].map((n) => `<option value="${n}" ${n === (L.rules.turnSeconds ?? 0) ? 'selected' : ''}>${tt.turnTime(n)}</option>`).join('')}</select></div>
         ${host ? '' : `<p class="msg" style="margin:6px 0 0">${tt.rulesFixed}</p>`}
       </div>` : ''}
     <div class="row">
@@ -213,7 +216,7 @@ function lobby(c: Client) {
   };
   app.onchange = (e) => {
     const el = e.target as HTMLInputElement;
-    if (el.dataset.rule && host) host.setRules({ [el.dataset.rule]: el.checked });
+    if (el.dataset.rule && host) host.setRules({ [el.dataset.rule]: el.tagName === 'SELECT' ? Number(el.value) : el.checked });
     if (el.dataset.level && host) host.setLevel(el.dataset.level, Number(el.value) as AiLevel);
   };
 }

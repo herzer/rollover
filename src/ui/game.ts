@@ -161,6 +161,18 @@ export class GameView {
     this.el.appendChild(p);
   };
 
+  /** The turn time limit's countdown, on the host's clock (it is the host that ends the turn). */
+  private tickClock() {
+    const el = this.el.querySelector('[data-ref="clock"]') as HTMLElement | null;
+    const s = this.s;
+    if (!el || !s?.rules.turnSeconds || !s.turnStartedAt) return;
+    const hostNow = Date.now() - this.client.clockOffset;
+    const left = Math.max(0, Math.ceil(s.rules.turnSeconds - (hostNow - s.turnStartedAt) / 1000));
+    el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    el.classList.toggle('low', left <= 10);
+  }
+  private clock = setInterval(() => this.tickClock(), 500);
+
   // Minka gets impatient when a turn drags on — anyone's: after a minute, then every half minute (2026-10-02)
   private turnSince = Date.now();
   private turnKey = '';
@@ -191,6 +203,7 @@ export class GameView {
   destroy() {
     if (this.strollTimer) clearTimeout(this.strollTimer);
     clearInterval(this.impatience);
+    clearInterval(this.clock);
     this.off();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisible);
@@ -432,8 +445,11 @@ export class GameView {
         else if (e.p === this.seat) this.kitty.happy();
         else if (e.opened && e.p !== this.seat) this.toast(t().log.open(name(e.p)));
         break;
-      case 'draw': if (e.p !== this.seat) sfx.draw(); break;
-      case 'pass': this.toast(t().log.pass(name(e.p))); break;
+      case 'draw':
+        if (e.timeout) this.toast(e.p === this.seat ? t().timeUpMine(true) : t().timeUp(s.players[e.p]?.name ?? '?', true), e.p === this.seat);
+        else if (e.p !== this.seat) sfx.draw();
+        break;
+      case 'pass': this.toast(e.timeout ? (e.p === this.seat ? t().timeUpMine(false) : t().timeUp(s.players[e.p]?.name ?? '?', false)) : t().log.pass(name(e.p))); break;
       case 'star': {
         const card = t().star[e.star];
         setTimeout(() => { this.starCard(card.title, card.body(name(e.p), name(e.target))); sfx.star(); }, 500);
@@ -568,8 +584,10 @@ export class GameView {
       const seatInfo = lobby?.seats.find((x) => x.id === p.id);
       const offline = p.kind === 'human' && seatInfo && !seatInfo.online;
       const label = p.kind === 'ai' ? icon('bot', 15) : '';
-      return `<div class="chip${s.turn === i && s.phase === 'playing' ? ' turn' : ''}" data-seat="${i}" title="${esc(p.name)} — ${esc(tt.tilesCount(p.rack.length))}">
-        ${label}<span>${esc(p.name)}${i === this.seat ? ` <span class="cnt">(${tt.you})</span>` : ''}${p.kind === 'ai' && s.turn === i && s.phase === 'playing' ? '<span class="dots"></span>' : ''}</span>
+      // a computer player shows how clever it is (2026-10-02, "they need to know at what difficulty level they are playing")
+      const level = p.kind === 'ai' ? [tt.easy, tt.medium, tt.hard][(p.level ?? 2) - 1] : '';
+      return `<div class="chip${s.turn === i && s.phase === 'playing' ? ' turn' : ''}" data-seat="${i}" title="${esc(p.name)}${level ? ` — ${esc(tt.computerAt(level))}` : ''} — ${esc(tt.tilesCount(p.rack.length))}">
+        ${label}<span>${esc(p.name)}${i === this.seat ? ` <span class="cnt">(${tt.you})</span>` : ''}${level ? `<span class="lvl">${esc(level)}</span>` : ''}${p.kind === 'ai' && s.turn === i && s.phase === 'playing' ? '<span class="dots"></span>' : ''}</span>
         <span class="cnt">${p.rack.length}</span>${p.score ? `<span class="sc">${p.score > 0 ? '+' : ''}${p.score}</span>` : ''}
         ${offline ? `<span class="off">${icon('wifiOff', 13)}</span>` : ''}</div>`;
     }).join('');
@@ -592,8 +610,10 @@ export class GameView {
     } else if (this.client.host?.isWaitingOn()) {
       html = `<span style="color:var(--warn)">${esc(tt.offlineWait(cur.name))}</span> <button class="btn sm" data-act="playFor" title="${esc(tt.playForTip)}">${icon('bot', 15)}${esc(tt.playFor(cur.name))}</button>`;
     } else html = esc(cur.kind === 'ai' ? tt.thinking(cur.name) : tt.theirTurn(cur.name));
+    if (s.phase === 'playing' && s.rules.turnSeconds && cur.kind === 'human') html += `<span class="clock" data-ref="clock" title="${esc(tt.clockTip)}"></span>`;
     status.innerHTML = html;
     status.classList.toggle('mine', this.myTurn);
+    this.tickClock();
 
     // revealed racks (star tiles, or the end of a round)
     const reveals = this.el.querySelector('[data-ref="reveals"]') as HTMLElement;

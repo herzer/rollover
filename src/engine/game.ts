@@ -32,8 +32,8 @@ export interface Reveal {
 
 export type LogEntry =
   | { k: 'play'; p: number; tiles: number; rollover: boolean; opened: boolean }
-  | { k: 'draw'; p: number }
-  | { k: 'pass'; p: number }
+  | { k: 'draw'; p: number; timeout?: boolean }
+  | { k: 'pass'; p: number; timeout?: boolean }
   | { k: 'star'; p: number; star: StarKind; target: number }
   | { k: 'win'; p: number }
   | { k: 'stalemate'; p: number };

@@ -140,7 +140,13 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
 
 ## Computer strength (2026-10-02)
 - Levels: Easy / Medium / Hard (`chooseMove` in `src/engine/ai.ts`). A new computer player joins at **Medium**
-  (`host.ts` `addAi`); the game creator picks the level per player in the game room.
+  (`host.ts` `addComputer`); the game creator picks the level per player in the game room, and the level shows on
+  the player's chip during the game ("they need to know at what difficulty level they are playing"; she declined
+  making Hard the default).
+- **Time per turn** (rules `turnSeconds`: off / 3 min / 2 min / 1 min / 30 s, default off): the host ends a person's
+  turn with a drawn tile when it runs out (`Host.scheduleTurnTimer`, 1.5 s grace; computers are never timed); the
+  countdown in the status line follows the host's clock (`now` in the state message → `client.clockOffset`).
+  `tests/turn-timer.test.ts`.
 - She asked for a stronger opponent ("optionally"). An "Expert" (deeper search; saving jokers; then keeping the rack
   with most melds in the making) **tied Hard 52–52 over 104 rounds and lost 247 points**, so it was not shipped
   (patch kept in `art/ai/expert-attempt-2026-10-02.patch`). Hard already lays the most tiles possible every turn;

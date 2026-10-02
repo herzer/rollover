@@ -57,6 +57,8 @@ export function knownGame(code: string): boolean {
 }
 
 export class Client {
+  /** This device's clock minus the host's (for the turn timer: the countdown follows the host's clock). */
+  clockOffset = 0;
   lobby: Lobby | null = null;
   state: GameState | null = null;
   seat = -1;
@@ -96,6 +98,7 @@ export class Client {
       case 'lobby': this.lobby = msg.lobby; this.emit({ t: 'update' }); break;
       case 'state': {
         const prevSeq = this.state?.seq;
+        if (msg.now) this.clockOffset = Date.now() - msg.now;
         this.state = msg.state;
         this.seat = msg.seat;
         if (msg.state && msg.state.seq !== prevSeq) this.drafts.clear();

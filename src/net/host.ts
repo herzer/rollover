@@ -28,6 +28,7 @@ export class Host {
   private worker: Worker | null = null;
   private job = 0;
   private aiTimer: ReturnType<typeof setTimeout> | null = null;
+  private turnTimer: ReturnType<typeof setTimeout> | null = null;
   onChange: () => void = () => {};
 
   constructor(hostId: string, hostName: string, code: string | null, saved?: { lobby: Lobby; state: GameState | null }, hostSecret = '') {
@@ -158,6 +159,28 @@ export class Host {
     this.job++; // any computer move still being thought about belongs to an older turn
     this.broadcast();
     this.scheduleAi();
+    this.scheduleTurnTimer();
+  }
+
+  /** The turn time limit (rules.turnSeconds): a person whose time runs out has their turn ended with a drawn tile,
+   *  exactly as if they had pressed Draw — their laid tiles were never committed, so they are simply back on the
+   *  rack. A little grace covers the network. Computer players are never timed. */
+  private scheduleTurnTimer() {
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.turnTimer = null;
+    const s = this.state, limit = s?.rules.turnSeconds ?? 0;
+    if (!s || s.phase !== 'playing' || !limit || s.players[s.turn].kind !== 'human') return;
+    const seq = s.seq;
+    const left = limit * 1000 - (Date.now() - (s.turnStartedAt ?? Date.now())) + 1500;
+    this.turnTimer = setTimeout(() => {
+      const now = this.state;
+      if (!now || now.seq !== seq || now.phase !== 'playing') return;
+      const r = drawTile(now, now.turn);
+      if (!r.ok) return;
+      const last = r.state.log[r.state.log.length - 1];
+      if (last && (last.k === 'draw' || last.k === 'pass')) last.timeout = true;
+      this.setState(r.state);
+    }, Math.max(0, left));
   }
 
   private sendState(clientId: string) {
@@ -166,7 +189,7 @@ export class Host {
     send({ t: 'lobby', lobby: { ...this.lobby, secrets: undefined } });
     if (!this.state) { send({ t: 'state', state: null, seat: -1 }); return; }
     const seat = this.state.players.findIndex((p) => p.id === clientId);
-    send({ t: 'state', state: redact(this.state, seat), seat });
+    send({ t: 'state', state: redact(this.state, seat), seat, now: Date.now() });
   }
 
   broadcast() {
@@ -209,7 +232,7 @@ export class Host {
   }
 
   /** Restarts the computer players after a reload. */
-  kick() { this.scheduleAi(); }
+  kick() { this.scheduleAi(); this.scheduleTurnTimer(); }
 
   /** The human seat the game is waiting on while they are offline, if any. */
   isWaitingOn(): SeatInfo | null {

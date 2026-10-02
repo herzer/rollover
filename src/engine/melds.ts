@@ -7,9 +7,12 @@ export interface Rules {
   rollover: boolean; // 13 may be followed by 1 in a run
   stars: boolean;
   openingMin: number; // 30
+  /** Seconds a person has per turn; 0 or missing = no limit (2026-10-02, "make it harder by adding turn time outs").
+   *  The host enforces it: when it runs out, the turn ends with a drawn tile. */
+  turnSeconds?: number;
 }
 
-export const DEFAULT_RULES: Rules = { rollover: true, stars: true, openingMin: 30 };
+export const DEFAULT_RULES: Rules = { rollover: true, stars: true, openingMin: 30, turnSeconds: 0 };
 
 export type MeldKind = 'group' | 'run';
 

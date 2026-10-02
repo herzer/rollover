@@ -29,7 +29,7 @@ export type ToHost =
 
 export type ToClient =
   | { t: 'lobby'; lobby: Lobby }
-  | { t: 'state'; state: GameState | null; seat: number }
+  | { t: 'state'; state: GameState | null; seat: number; now?: number }   // now: the host's clock, for the turn timer
   | { t: 'draft'; seat: number; board: Placed[]; seq: number }
   | { t: 'react'; seat: number; emoji: string }
   | { t: 'error'; error: string }
