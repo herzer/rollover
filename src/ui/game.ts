@@ -159,7 +159,36 @@ export class GameView {
     this.el.appendChild(p);
   };
 
+  // Minka gets impatient when a turn drags on — anyone's: after a minute, then every half minute (2026-10-02)
+  private turnSince = Date.now();
+  private turnKey = '';
+  private lastAngry = 0;
+  private impatience = setInterval(() => {
+    const s = this.s;
+    if (!s || s.phase !== 'playing' || document.hidden || this.modalOpen) return;
+    const now = Date.now();
+    if (now - this.turnSince > 60000 && now - this.lastAngry > 30000) { this.lastAngry = now; this.kitty.impatient(); }
+  }, 5000);
+
+  // Minka strolls along the rack now and then: first soon after she arrives, then every few minutes (2026-10-02)
+  private strollTimer: ReturnType<typeof setTimeout> | null = null;
+  private scheduleStroll(first = false) {
+    if (this.strollTimer) clearTimeout(this.strollTimer);
+    this.strollTimer = setTimeout(() => this.stroll(), first ? 12000 : 150000 + Math.random() * 150000);
+  }
+  private stroll() {
+    // not while you are moving tiles, reading a message, or looking away
+    if (this.drag || this.modalOpen || document.hidden || !this.kitty.canStroll) { this.scheduleStroll(); return; }
+    // along the top of the rack (the bottom board) to its far end and back — not across the table
+    const host = this.el.getBoundingClientRect(), rk = this.rackEl.getBoundingClientRect();
+    const home = this.kitty.paws;
+    const far: [number, number] = [rk.left - host.left + rk.width * 0.1, home[1]];
+    void this.kitty.stroll([home, far, home]).then(() => this.scheduleStroll());
+  }
+
   destroy() {
+    if (this.strollTimer) clearTimeout(this.strollTimer);
+    clearInterval(this.impatience);
     this.off();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisible);
@@ -215,6 +244,8 @@ export class GameView {
     this.overlay = ref('over');
     this.kitty = new Kitty(this.el);
     this.kitty.setTitle(t().petKitty);
+    this.scheduleStroll(true);
+    if (import.meta.env.DEV) (window as unknown as { minkaStroll: () => void }).minkaStroll = () => this.stroll();
     this.el.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
       if (b && !(b as HTMLButtonElement).disabled) this.act(b.dataset.act!, b);
@@ -354,6 +385,7 @@ export class GameView {
     }
     // a new turn throws away any draft and hint — a brief disconnect does not
     const key = `${s.round}:${s.turnNo}`;
+    if (key !== this.turnKey) { this.turnKey = key; this.turnSince = Date.now(); }
     const mineInState = s.phase === 'playing' && s.turn === this.seat;
     if (mineInState) {
       if (this.draftKey !== key || !this.draft) { this.draft = s.board.map((p) => ({ ...p })); this.hint = null; this.validKeys.clear(); }

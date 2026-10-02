@@ -25,6 +25,9 @@ export class MinkaCat {
   private busy = false;                 // a one-off reaction is playing
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private clock = new THREE.Clock();
+  private cat!: THREE.Object3D;
+  private yaw = 0.35;                   // where she faces: 0.35 = turned a little toward the table, as she sits
+  private static SIT = 0.35;
 
   /** Builds her into `host` (the kitten's button). Resolves null when 3D is not available, so the kitten stays. */
   static async create(host: HTMLElement): Promise<MinkaCat | null> {
@@ -68,8 +71,9 @@ export class MinkaCat {
     cat.scale.setScalar(1 / (box.max.y - box.min.y));
     const b2 = new THREE.Box3().setFromObject(cat);
     cat.position.sub(new THREE.Vector3((b2.min.x + b2.max.x) / 2, b2.min.y, (b2.min.z + b2.max.z) / 2));
-    cat.rotation.y = 0.35;                              // turned a little toward the table
+    cat.rotation.y = MinkaCat.SIT;                      // turned a little toward the table
     this.scene.add(cat);
+    this.cat = cat;
     // the body is the biggest skinned mesh; her eyeballs tell the fur where to stop
     let body: THREE.SkinnedMesh | null = null;
     const eyePts: THREE.Vector3[] = [];
@@ -85,6 +89,7 @@ export class MinkaCat {
     addToonCatchlights(cat);
     this.mixer = new THREE.AnimationMixer(cat);
     for (const clip of gltf.animations) this.actions.set(clip.name.replace(/^AS_StylizedCat_/, ''), this.mixer.clipAction(clip));
+    this.stride = this.measureStride();
     this.mixer.addEventListener('finished', () => { this.busy = false; this.base(); });
 
     this.host.prepend(this.renderer.domElement);
@@ -92,9 +97,49 @@ export class MinkaCat {
     this.resize();
     this.base();
     this.renderer.setAnimationLoop(() => {
-      this.mixer.update(Math.min(this.clock.getDelta(), 0.1));
+      const dt = Math.min(this.clock.getDelta(), 0.1);
+      this.cat.rotation.y += (this.yaw - this.cat.rotation.y) * Math.min(1, dt * 7);   // turns smoothly
+      this.mixer.update(dt);
       this.renderer.render(this.scene, this.camera);
     });
+  }
+
+  /** How fast her body travels when she walks, in her own units a second, read off the walk clip so her paws do not
+   *  slide (2026-10-02): while a paw is down it moves backward under her at exactly the body's speed. */
+  private stride = 0.6;
+  private measureStride(): number {
+    const walk = this.actions.get('walk');
+    if (!walk) return 0.6;
+    const yaw = this.cat.rotation.y; this.cat.rotation.y = 0;          // forward = +z while measuring
+    walk.reset().play();
+    const dur = walk.getClip().duration, N = 60;
+    const paws = ['Paw_L', 'Paw_R', 'HindPaw_L', 'HindPaw_R'].map((n) => this.cat.getObjectByName(n)).filter(Boolean) as THREE.Object3D[];
+    const track = paws.map(() => [] as { y: number; z: number }[]);
+    const p = new THREE.Vector3();
+    for (let i = 0; i <= N; i++) {
+      this.mixer.setTime((i / N) * dur);
+      this.cat.updateMatrixWorld(true);
+      paws.forEach((b, k) => { b.getWorldPosition(p); track[k].push({ y: p.y, z: p.z }); });
+    }
+    walk.stop(); this.mixer.setTime(0); this.cat.rotation.y = yaw;
+    const speeds: number[] = [];
+    for (const t of track) {
+      const lo = Math.min(...t.map((q) => q.y)), hi = Math.max(...t.map((q) => q.y));
+      for (let i = 1; i < t.length; i++) {
+        if (t[i].y < lo + 0.15 * (hi - lo) && t[i - 1].y < lo + 0.15 * (hi - lo)) speeds.push(-(t[i].z - t[i - 1].z) / (dur / N));
+      }
+    }
+    speeds.sort((a, b) => a - b);
+    const v = speeds.length ? speeds[Math.floor(speeds.length / 2)] : 0.6;
+    return v > 0.05 ? v : 0.6;
+  }
+
+  /** Her walking speed on screen, pixels a second along x, for the way she faces now. */
+  speedPx(dir: -1 | 1): number {
+    const w = dir * Math.PI / 2 - dir * 0.45;
+    const f = new THREE.Vector3(Math.sin(w), 0, Math.cos(w));
+    const a = new THREE.Vector3(0, 0.05, 0).project(this.camera), b = new THREE.Vector3(0, 0.05, 0).addScaledVector(f, 1).project(this.camera);
+    return Math.abs(b.x - a.x) / 2 * this.host.clientWidth * this.stride;
   }
 
   private resize() {
@@ -144,4 +189,16 @@ export class MinkaCat {
   rollover() { this.react('idle_attack'); }
   party() { this.react('jump_loop', 3); }
   pet() { this.awake = true; this.react('idle_05'); }
+  /** Impatient: a swipe and a hiss when a turn drags on (2026-10-02, "use the angry animation when the wait gets long") */
+  angry() { this.react('attack'); }
+  /** Walking (her stroll across the table, driven by kitty.ts): sideways, -1 toward the left of the screen, 1 right,
+   *  turned a little toward the player so her face shows. */
+  walk(dir: -1 | 1) {
+    this.busy = true;
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.yaw = dir * Math.PI / 2 - dir * 0.45;
+    this.play(calm ? 'idle_01' : 'walk', false, 0.25);
+  }
+  /** Back at her spot: facing the table again, idling or asleep as before. */
+  settle() { this.yaw = MinkaCat.SIT; this.busy = false; this.base(); }
 }

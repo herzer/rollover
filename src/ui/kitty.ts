@@ -45,7 +45,8 @@ export const KITTEN_FACE = `<svg class="kface" viewBox="20 2 80 74" aria-hidden=
 
 // Minka in 3D is the mascot (2026-10-02); ?kitty=classic shows the drawn kitten, which also stays when 3D cannot load
 const CLASSIC = new URLSearchParams(location.search).get('kitty') === 'classic';
-type Cat = { setAwake(a: boolean): void; happy(): void; rollover(): void; party(): void; pet(): void };
+type Cat = { setAwake(a: boolean): void; happy(): void; rollover(): void; party(): void; pet(): void;
+  walk(dir: -1 | 1): void; settle(): void; angry(): void; speedPx(dir: -1 | 1): number };
 
 export class Kitty {
   el: HTMLElement;
@@ -71,6 +72,7 @@ export class Kitty {
     if (!cat) { this.el.classList.remove('minka3d'); return; }
     this.el.querySelector('svg')?.remove();
     this.cat = cat;
+    if (import.meta.env.DEV) (window as unknown as { minkaCat: unknown }).minkaCat = cat;
     cat.setAwake(this.mood === 'awake');
     this.place(this.at[0], this.at[1]);
   }
@@ -78,9 +80,11 @@ export class Kitty {
   setTitle(text: string) { this.el.title = text; }
 
   private at: [number, number] = [0, 0];
+  private strolling = false;
   /** Sits on the top-right corner of the rack (Minka is larger: her bottom-right corner sits where the kitten's did). */
   place(x: number, y: number) {
     this.at = [x, y];
+    if (this.strolling) return;
     const dx = this.cat ? 84 - this.el.offsetWidth : 0, dy = this.cat ? 73 - this.el.offsetHeight : 0;
     this.el.style.left = `${x + dx}px`;
     this.el.style.top = `${y + dy}px`;
@@ -116,7 +120,47 @@ export class Kitty {
     }
   }
 
+  get canStroll() { return !!this.cat && !this.strolling; }
+
+  /** Minka takes a walk (2026-10-02, Stefanie: "make Minka walk … on the bottom board, not across, and the feet should
+   *  not slide"): from her spot along `path` — points where her paws go, in the game's coordinates — then sits again.
+   *  She lets clicks pass while out. */
+  stroll(path: [number, number][]): Promise<void> {
+    const cat = this.cat;
+    if (!cat || this.strolling) return Promise.resolve();
+    this.strolling = true;
+    this.el.classList.add('walking');
+    const w = this.el.offsetWidth, h = this.el.offsetHeight;
+    const foot = (p: [number, number]) => { this.el.style.left = `${p[0] - w / 2}px`; this.el.style.top = `${p[1] - h * 0.92}px`; };
+    return new Promise((done) => {
+      let seg = 0, t0 = performance.now(), facing = 0;
+      const step = (now: number) => {
+        const a = path[seg], b = path[seg + 1];
+        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const dir = b[0] < a[0] ? -1 : 1;
+        if (dir !== facing) { facing = dir; cat.walk(dir); }
+        // her paws' own pace, read from her walk (minkacat.ts), so they do not slide over the rack
+        const speed = cat.speedPx(dir);
+        const k = Math.min(1, ((now - t0) / 1000) * speed / len);
+        foot([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
+        if (k >= 1) { seg++; t0 = now; }
+        if (seg < path.length - 1) { requestAnimationFrame(step); return; }
+        this.strolling = false;
+        this.el.classList.remove('walking');
+        this.place(this.at[0], this.at[1]);
+        cat.settle();
+        done();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  /** Where her paws are now, in the game's coordinates (the start of a stroll). */
+  get paws(): [number, number] { return [this.el.offsetLeft + this.el.offsetWidth / 2, this.el.offsetTop + this.el.offsetHeight * 0.92]; }
+
   happy() { this.flash('happy', 1600); this.hearts(3); this.cat?.happy(); }
+  /** A turn is taking long: Minka gets impatient (her angry swipe); the drawn kitten just stays as it is. */
+  impatient() { if (!this.strolling) this.cat?.angry(); }
   rollover() { this.flash('roll', 1400); this.hearts(2); this.cat?.rollover(); }
   party() { this.flash('party', 3200); this.hearts(8); sfx.meow(); this.cat?.party(); }
   pet() { this.el.classList.remove('sleep'); this.flash('happy', 1800); this.hearts(4); sfx.purr(); this.cat?.pet(); }
