@@ -138,6 +138,15 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   swipe tiles, lick paws), Medhe's UE cats as a possible base (needs a file + his OK). Name under discussion:
   "RummyCat" (Rummikub-like names are a trademark risk; see the name section).
 
+## Computer strength (2026-10-02)
+- Levels: Easy / Medium / Hard (`chooseMove` in `src/engine/ai.ts`). A new computer player joins at **Medium**
+  (`host.ts` `addAi`); the game creator picks the level per player in the game room.
+- She asked for a stronger opponent ("optionally"). An "Expert" (deeper search; saving jokers; then keeping the rack
+  with most melds in the making) **tied Hard 52–52 over 104 rounds and lost 247 points**, so it was not shipped
+  (patch kept in `art/ai/expert-attempt-2026-10-02.patch`). Hard already lays the most tiles possible every turn;
+  a real step up needs lookahead over future draws. Measure any attempt first:
+  `STRENGTH=40 A=3 B=2 npx vitest run tests/strength.test.ts` (each deal twice, seats swapped).
+
 ## Testing tips
 - Two players in one browser: open the invite link with `?fresh` before the `#` in a second tab.
 - `?lab` (dev server) shows the six tile finishes; ⌘⇧D in a game opens the dev panel.
