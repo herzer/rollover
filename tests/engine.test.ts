@@ -297,6 +297,22 @@ describe('the hint: one next step, from the table as it is (2026-10-02)', () => 
     expect(h.plan?.some((m) => [...m].sort().join() === '0,1,2,3')).toBe(true);
     expect(h.step === null || ![0, 1, 2, 3].includes(h.step.id)).toBe(true);
   });
+  it('builds on your own formation even when undoing it would lay a tile more (2026-10-02)', () => {
+    // the table began with orange 3-4-5; you took its 5 for orange 5-joker-7, leaving 3-4 unfinished. Undoing yours
+    // (7 back to the rack, the joker with black and blue 6, the 5 back on 3-4) would lay three tiles; the hint keeps
+    // everything you laid instead — 3-4-5-joker-7 — and never hands your tiles back
+    const t: Tile[] = [T(2, 3), T(2, 4), T(2, 5), { id: 0, color: 0 as Color, num: 0, joker: true, star: false }, T(2, 7), T(3, 6), T(1, 6)];
+    t.forEach((x, i) => (x.id = i));
+    const s = newGame([{ id: 'a', name: 'A', kind: 'human' }, { id: 'b', name: 'B', kind: 'ai', level: 1 }], { rollover: true, stars: false, openingMin: 30 }, 1);
+    const start: Placed[] = [0, 1, 2].map((id, k) => ({ id, r: 0, c: k }));
+    const st = { ...s, tiles: t, board: start, turn: 0,
+      players: s.players.map((p, i) => (i === 0 ? { ...p, rack: [3, 4, 5, 6], opened: true } : p)) };
+    const draft: Placed[] = [{ id: 0, r: 0, c: 0 }, { id: 1, r: 0, c: 1 }, { id: 2, r: 2, c: 0 }, { id: 3, r: 2, c: 1 }, { id: 4, r: 2, c: 2 }];
+    const h = hintWithPlan(st, 0, draft, 80000, null);
+    const inPlan = new Set(h.plan?.flat());
+    expect([3, 4].every((id) => inPlan.has(id))).toBe(true);           // your joker and 7 stay down
+    expect(h.step?.toRack).toBeFalsy();
+  });
   it('lays a meld straight from the rack before rearranging the table', () => {
     const t = [T(1, 4), T(3, 4), T(2, 4), T(0, 7), T(0, 8), T(0, 9), T(0, 10)];
     t.forEach((x, i) => (x.id = i));

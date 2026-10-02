@@ -364,19 +364,34 @@ export function hintPlan(state: GameState, seat: number, draft: Placed[], budget
     // or take back — one that fits nowhere goes back to the rack (the first kind of step)
     const ok = (m: number[]) => evalMeld(m.map((id) => tiles[id]), rules).ok;
     const good = lines.filter(ok), broken = lines.filter((m) => !ok(m)).flat();
-    // the legal lines most likely to give or take a tile from the unfinished ones (same number, or same color close
-    // by) are opened up a few at a time — small searches, and the rest of your table stays exactly as you have it
+    // Your moves come first (2026-10-02, "it still does not take into consideration the moves I have on the board"):
+    // the plan builds on what you laid, even when undoing it would lay a tile more. In this order:
+    //   1. your finished melds stay as they are and every tile you laid stays down — only your unfinished lines and
+    //      the turn's starting melds related to them are rearranged;
+    //   2. your melds may be rearranged too, but all your tiles stay on the table;
+    //   3. only then may some of your tiles go back to the rack.
+    // The related melds (same number, or same color close by) are opened a few at a time — small searches, and the
+    // rest of the table stays exactly as it is.
     const near = (a: Tile, b: Tile) => a.joker || b.joker || a.num === b.num || (a.color === b.color && Math.abs(a.num - b.num) <= 2);
-    const related = good.map((m) => ({ m, n: broken.filter((id) => m.some((x) => near(tiles[x], tiles[id]))).length }))
+    const yours = (m: number[]) => m.some((id) => !start.has(id));
+    const relatedOf = (ms: number[][]) => ms.map((m) => ({ m, n: broken.filter((id) => m.some((x) => near(tiles[x], tiles[id]))).length }))
       .sort((a, b) => b.n - a.n).filter((x) => x.n > 0).map((x) => x.m);
-    let tried = -1;
-    for (const k of [0, 2, 4, 8]) {
-      const open = related.slice(0, k);
-      if (open.length === tried) break;                       // no more related lines to open
-      tried = open.length;
-      const pool = [...broken, ...open.flat()];
-      const rest = solveAll(pool.filter((id) => start.has(id)), [...rackLeft, ...pool.filter((id) => !start.has(id))], tiles, rules, budget);
-      if (rest) return [...good.filter((m) => !open.includes(m)), ...rest];
+    const passes: { keep: boolean; candidates: number[][] }[] = [
+      { keep: true, candidates: relatedOf(good.filter((m) => !yours(m))) },
+      { keep: true, candidates: relatedOf(good) },
+      { keep: false, candidates: relatedOf(good) },
+    ];
+    for (const { keep, candidates } of passes) {
+      let tried = -1;
+      for (const k of [0, 2, 4, 8]) {
+        const open = candidates.slice(0, k);
+        if (open.length === tried) break;                     // no more related lines to open
+        tried = open.length;
+        const pool = [...broken, ...open.flat()];
+        const must = pool.filter((id) => keep || start.has(id)), may = [...rackLeft, ...pool.filter((id) => !must.includes(id))];
+        const rest = solveAll(must, may, tiles, rules, budget);
+        if (rest) return [...good.filter((m) => !open.includes(m)), ...rest];
+      }
     }
     // only when that cannot work: everything that was on the table stays on it, every line legal, the best added —
     // and if even that search gives up, the table as your turn began (always legal: the steps lead back to it)
