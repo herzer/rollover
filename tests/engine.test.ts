@@ -3,7 +3,7 @@ import { evalMeld, belongsTogether, meldAround, legalSplit } from '../src/engine
 import type { Tile, Color } from '../src/engine/tiles';
 import { checkBoard, closeUp, layoutMelds, relayRow, segments, type Placed } from '../src/engine/board';
 import { newGame, commitTurn, drawTile, validateCommit, type GameState } from '../src/engine/game';
-import { chooseMove, hintStep, stepToward } from '../src/engine/ai';
+import { chooseMove, hintStep, hintWithPlan, stepToward } from '../src/engine/ai';
 
 let nextId = 1000;
 const T = (color: Color, num: number): Tile => ({ id: nextId++, color, num, joker: false, star: false });
@@ -283,6 +283,19 @@ describe('the hint: one next step, from the table as it is (2026-10-02)', () => 
     expect([3, 4, 8]).toContain(step.id);
     // a free spot apart from both runs (cells 4 and 9 are the runs' ends)
     expect(step.r === 0 && step.c <= 9).toBe(false);
+  });
+  it('keeps a meld you laid yourself instead of taking it apart (2026-10-02)', () => {
+    // your rack: red 7-8-9-10, blue 7, black 7. The best use of all six is a group of 7s plus red 8-9-10 — but you
+    // laid red 7-8-9-10 yourself, so the hint plans around your run and never moves its 7 away
+    const t = [T(0, 7), T(0, 8), T(0, 9), T(0, 10), T(1, 7), T(3, 7)];
+    t.forEach((x, i) => (x.id = i));
+    const s = newGame([{ id: 'a', name: 'A', kind: 'human' }, { id: 'b', name: 'B', kind: 'ai', level: 1 }], { rollover: true, stars: false, openingMin: 30 }, 1);
+    const st = { ...s, tiles: t, board: [] as Placed[], turn: 0,
+      players: s.players.map((p, i) => (i === 0 ? { ...p, rack: [0, 1, 2, 3, 4, 5], opened: true } : p)) };
+    const draft: Placed[] = [0, 1, 2, 3].map((id, k) => ({ id, r: 0, c: k }));
+    const h = hintWithPlan(st, 0, draft, 80000, null);
+    expect(h.plan?.some((m) => [...m].sort().join() === '0,1,2,3')).toBe(true);
+    expect(h.step === null || ![0, 1, 2, 3].includes(h.step.id)).toBe(true);
   });
   it('lays a meld straight from the rack before rearranging the table', () => {
     const t = [T(1, 4), T(3, 4), T(2, 4), T(0, 7), T(0, 8), T(0, 9), T(0, 10)];

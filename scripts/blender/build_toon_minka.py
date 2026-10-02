@@ -38,7 +38,7 @@ eye_i = next(i for i, m in enumerate(me.materials) if m and 'Eyes' in m.name)
 for m in me.materials:
     for n in (m.node_tree.nodes if m and m.use_nodes else []):
         if n.type == 'TEX_IMAGE' and n.image and 'Albedo' in n.image.name:
-            n.image = bpy.data.images.load(P('art/minka/toon/coat-minka.png')); n.image.pack()
+            n.image = bpy.data.images.load(P(os.environ.get('COAT', 'art/minka/toon/coat-minka.png'))); n.image.pack()   # COAT= another painting
 
 # --- her eyes: Stefanie's eyeball texture, unchanged, fitted by the UVs (the mapping of Toon Minka 1) ---------------
 EYE_IMAGE = 'cat_eyeball_texture_lblue_wide_open.jpg'      # Stefanie's eye, with its measured iris (measure_iris.py)
@@ -79,6 +79,11 @@ for s_ in 'LR':
             MJ[j] = TJ[top] + (MJ[j] - base)
 for nm in ('Pelvis', 'Spine1', 'Spine2', 'Chest', 'Neck', 'Head', 'Tail1', 'Clavicle_L', 'Clavicle_R'):
     MJ[nm] = TJ[nm].copy()
+# her head carriage (2026-10-02, "looks like a Bulldog"): the toon holds its head low and forward with no neck; hers
+# sits 1.6 cm higher and a little back. NECK_UP of the way there (all of it read as a stretched neck in v2)
+NECK_UP = float(os.environ.get('NECK_UP', '0.75'))
+for nm in ('Neck', 'Head'):
+    MJ[nm] = TJ[nm] + (Vector(S['H'][list(S['bone_names']).index(nm)]) - TJ[nm]) * NECK_UP
 # each bone maps its segment (its joint to the next joint down the chain) onto Minka's: stretched along the bone,
 # turned to her direction; bones at a chain's end only move
 NEXT = {'Pelvis': 'Spine1', 'Spine1': 'Spine2', 'Spine2': 'Chest', 'Chest': 'Neck', 'Neck': 'Head'}
@@ -150,6 +155,183 @@ for kb_or_v in [kb.data for kb in keys] + [ob.data.vertices]:
                 piv = aw @ B[eb_].head_local
                 p = p + ((piv + (p - piv) * EYES) - p) * min(1.0, w)
         d.co = mwi @ p
+# --- her build: slim like Minka (2026-10-02, Stefanie: "the body is very very sturdy and muscular … looks like a
+# Bulldog … slim her down … matching Minka's overall physique"). Measured, not guessed: Minka v2 is this same mesh fitted
+# point for point onto Minka's own body (v2-shape.npz: V, with her joints H), so for every body and leg bone we compare
+# how far its skin sits from the bone — sideways and across — on her and on the toon, and scale the toon's skin about
+# the bone by that ratio (SLIM = how much of it: 1 = her measure). Head and tail keep the approved toon look; every
+# point blends the scales of the bones it is skinned to, so joints stay smooth, and the skeleton (so every
+# animation) is untouched.
+SLIM = float(os.environ.get('SLIM', '1.0'))
+H0 = {nm: Vector(S['H'][i]) for i, nm in enumerate(S['bone_names'])}          # her joints, as measured
+BODY = [b for b in NEXT if b in H0 and NEXT[b] in H0]
+import bmesh as _bm
+_b = _bm.new(); _b.from_mesh(ob.data); _b.verts.ensure_lookup_table()
+_n = len(ob.data.vertices); _seen = np.zeros(_n, bool); _pieces = []
+for v in _b.verts:
+    if _seen[v.index]: continue
+    st = [v]; _seen[v.index] = True; vs = []
+    while st:
+        x = st.pop(); vs.append(x.index)
+        for e in x.link_edges:
+            o = e.other_vert(x)
+            if not _seen[o.index]: _seen[o.index] = True; st.append(o)
+    _pieces.append(vs)
+_pieces.sort(key=lambda p_: -len(p_))
+_piece = np.zeros(_n, int)
+for i, p_ in enumerate(_pieces): _piece[p_] = i
+_keep = np.where(~np.isin(_piece, (17, 18)))[0]                                 # v2 has every point but the ear tufts
+V2s = S['V']; assert len(_keep) == len(V2s)
+v2_of = {int(t): k for k, t in enumerate(_keep)}
+Xs = np.array([tuple(mw @ v.co) for v in ob.data.vertices])
+def frame(h, c):
+    a = (c - h).normalized(); l = Vector((1, 0, 0)); l = (l - a * l.dot(a)).normalized()
+    return a, l, a.cross(l)
+dom = {}
+for i, gs in enumerate(vgroups):
+    g = max(gs, key=lambda g_: g_.weight, default=None)
+    if g and g.weight > 0.6: dom.setdefault(gname.get(g.group), []).append(i)
+scale = {}
+for b in BODY:
+    ids = [i for i in dom.get(b, []) if i in v2_of]
+    if len(ids) < 12: continue
+    def spread(P_, h, c):
+        a, l, u = frame(h, c)
+        D = P_ - np.array(h)
+        perp = D - np.outer(D @ np.array(a), np.array(a))
+        return (perp @ np.array(l)).std(), (perp @ np.array(u)).std()
+    tl, tu = spread(Xs[ids], MJ[b], MJ[NEXT[b]])
+    ml, mu = spread(V2s[[v2_of[i] for i in ids]], H0[b], H0[NEXT[b]])
+    sl, su = np.clip(ml / tl, 0.55, 1.15), np.clip(mu / tu, 0.55, 1.15)
+    scale[b] = (1 + (sl - 1) * SLIM, 1 + (su - 1) * SLIM)
+    print(f'SLIM {b:12s} sideways {ml / tl:.2f} across {mu / tu:.2f} -> {scale[b][0]:.2f} {scale[b][1]:.2f}')
+# Thickness alone keeps the bulldog: the toon's mass hangs low (deep boxy chest, low belly), so little leg shows.
+# So each body and leg point takes Minka's own place relative to its bones (FIT = how far: 1 = hers): her offset from
+# each bone it is skinned to — along the bone in proportion to the bone's length, across it as measured — rebuilt on
+# the toon's skeleton and blended by the skin weights. The neck, head and tail stay the toon's.
+FIT = float(os.environ.get('FIT', '1.0'))
+FITBONES = set(BODY)                                           # the neck too: its base was the bulldog's chest
+ENDS = {f'{e}_{s_}': f'{p_}_{s_}' for s_ in 'LR' for e, p_ in (('PawEnd', 'Paw'), ('HindPawEnd', 'HindPaw'))}
+v2pos = {}
+def fitted(i, pw, groups):
+    if i not in v2_of: return pw
+    q2 = Vector(V2s[v2_of[i]])
+    tot, out = 0.0, Vector()
+    for g in groups:
+        nm = gname.get(g.group)
+        if g.weight <= 0 or nm is None: continue
+        if nm in FITBONES:
+            a2, l2, u2 = frame(H0[nm], H0[NEXT[nm]]); d = q2 - H0[nm]
+            a, l, u = frame(MJ[nm], MJ[NEXT[nm]])
+            k = (MJ[NEXT[nm]] - MJ[nm]).length / max((H0[NEXT[nm]] - H0[nm]).length, 1e-9)
+            q = MJ[nm] + a * (d.dot(a2) * k) + l * d.dot(l2) + u * d.dot(u2)
+        elif nm in ENDS and nm in H0:                          # the toes: her offset from the toe joint, in the paw's frame
+            pa = ENDS[nm]
+            a2, l2, u2 = frame(H0[pa], H0[nm]); d = q2 - H0[nm]
+            a, l, u = frame(MJ[pa], MJ[nm])
+            q = MJ[nm] + a * d.dot(a2) + l * d.dot(l2) + u * d.dot(u2)
+        else:
+            q = pw
+        out += q * g.weight; tot += g.weight
+    return pw + (out / tot - pw) * FIT if tot > 0 else pw
+if FIT > 0:
+    P0 = [mw @ v.co for v in ob.data.vertices]
+    P1 = [fitted(i, P0[i], vgroups[i]) for i in range(len(P0))]
+    for kb in keys:                                            # shape keys move by the same offset
+        for i, d in enumerate(kb.data): d.co = mwi @ (mw @ d.co + (P1[i] - P0[i]))
+    for i, v in enumerate(ob.data.vertices): v.co = mwi @ P1[i]
+    bpy.context.view_layer.update()
+
+# --- the cheek ruff tucked in (2026-10-02, Stefanie: "tuck in the cheek ruff"): the toon's face patch ends in a jagged
+# fringe that sticks out past the cheeks; Minka's face is round. The fringe is smoothed (Taubin: no shrinking), then
+# the head's outline is fitted to hers (below).
+RUFF_SMOOTH = 10
+_b = _bm.new(); _b.from_mesh(ob.data); _b.verts.ensure_lookup_table(); _b.edges.ensure_lookup_table()
+adj = {}
+for e in _b.edges:
+    if e.is_boundary and _piece[e.verts[0].index] == 0:
+        a_, b_ = e.verts[0].index, e.verts[1].index
+        adj.setdefault(a_, []).append(b_); adj.setdefault(b_, []).append(a_)
+loops, used = [], set()
+for s0 in adj:
+    if s0 in used: continue
+    lp = [s0]; used.add(s0); prev, cur = None, s0
+    while True:
+        nx = [m_ for m_ in adj[cur] if m_ != prev and m_ not in used]
+        if not nx: break
+        prev, cur = cur, nx[0]; lp.append(cur); used.add(cur)
+    loops.append(lp)
+X = np.array([tuple(mw @ v.co) for v in ob.data.vertices])
+outer = max(loops, key=len)                                   # the face's outer edge (the eye openings are small)
+L = np.array(outer)
+X0 = X.copy()
+for _ in range(RUFF_SMOOTH):
+    for f in (0.5, -0.53):
+        X[L] += f * ((X[np.roll(L, 1)] + X[np.roll(L, -1)]) / 2 - X[L])
+# then the head's outline, height by height, onto hers: measured on the head (Head-weighted points; ears and eyes
+# excluded), the toon is up to 2 cm wider at the lower cheeks (9.9 vs 7.6 cm from her middle at 0.24 m) and its ruff
+# spikes stick out ~0.7 cm at eye height. Only the outer band moves (beyond CORE of her width), compressed so the toon's
+# widest point lands on hers; the face inside is untouched
+# the tufts themselves: the cheek’s outline zigzags 0.5–1 cm (sculpted fur spikes in the face mask AND the head shell behind it (piece 6), between the jaw
+# and eye height). Smoothing the face mesh there, more the further out a point sits, melts them into a round cheek
+CHEEK_SMOOTH = 30
+nbr = [[e.other_vert(v).index for e in v.link_edges] for v in _b.verts]
+cheek = [i for i in range(len(X)) if _piece[i] in (0, 6) and abs(X[i, 0]) > 0.062 and 0.225 < X[i, 2] < 0.338]
+wSk = np.array([sum(g.weight for g in gs if (gname.get(g.group) or '').startswith(('Ear', 'Eye'))) for gs in vgroups])
+cw = {i: float(np.clip((abs(X[i, 0]) - 0.062) / 0.015, 0, 1)) * (wSk[i] < 0.05) for i in cheek}
+for _ in range(CHEEK_SMOOTH):
+    Xn_ = X.copy()
+    for i, w in cw.items():
+        if w <= 0: continue
+        Xn_[i] = X[i] + 0.5 * w * (X[nbr[i]].mean(0) - X[i])
+    X = Xn_
+CORE = 0.8
+PROF_Z = np.array([0.20, 0.24, 0.25, 0.26, 0.27, 0.30]); PROF_X = np.array([0.074, 0.076, 0.081, 0.085, 0.087, 0.087])
+wHead = np.array([sum(g.weight for g in gs if gname.get(g.group) == 'Head') for gs in vgroups])
+wSkip = np.array([sum(g.weight for g in gs if (gname.get(g.group) or '').startswith(('Ear', 'Eye'))) for gs in vgroups])
+sel = (wHead > 0.05) & (wSkip < 0.05) & (X[:, 2] < 0.30)
+zb = np.arange(0.19, 0.31, 0.005)
+mz = np.array([np.abs(X[sel & (X[:, 2] >= z) & (X[:, 2] < z + 0.005), 0]).max(initial=0) for z in zb])
+mz = np.maximum.accumulate(mz[::-1])[::-1] * 0 + np.convolve(np.pad(mz, 2, mode='edge'), np.ones(5) / 5, 'valid')
+for i in np.nonzero(sel)[0]:
+    z = X[i, 2]; T = np.interp(z, PROF_Z, PROF_X); M = max(np.interp(z, zb + 0.0025, mz), T)
+    R0 = T * CORE; ax = abs(X[i, 0])
+    if ax <= R0 or M <= T: continue
+    nx = R0 + (ax - R0) * (T - R0) / (M - R0)
+    X[i, 0] = np.sign(X[i, 0]) * (ax + (nx - ax) * min(1.0, wHead[i] * 1.2))
+# and the fringe laid flat: the face patch is a mask over the head, and its edge stands off the head like a mane. Each
+# point near the edge (FLAT_RINGS edge rings in) moves onto the head surface under it (the head's other pieces), a hair
+# above it, fully at the edge and less inward
+from mathutils.bvhtree import BVHTree
+FLAT_RINGS, LIFT = 5, 0.0015
+under = [f for f in ob.data.polygons if _piece[f.vertices[0]] != 0 and f.material_index != eye_i
+         and any(gname.get(g.group) == 'Head' and g.weight > 0.3 for g in vgroups[f.vertices[0]])]
+uverts = sorted({v for f in under for v in f.vertices}); ui = {v: k for k, v in enumerate(uverts)}
+bvh = BVHTree.FromPolygons([tuple(X[v]) for v in uverts], [[ui[v] for v in f.vertices] for f in under])
+ring = {int(i): 0 for i in L}; front = list(ring)
+for k in range(1, FLAT_RINGS + 1):
+    nxt = []
+    for i in front:
+        for e in _b.verts[i].link_edges:
+            o = e.other_vert(_b.verts[i]).index
+            if o not in ring and _piece[o] == 0: ring[o] = k; nxt.append(o)
+    front = nxt
+flat = 0
+for i, k in ring.items():
+    if wSkip[i] > 0.05: continue
+    hit = bvh.find_nearest(Vector(X[i]))
+    if hit[0] is None or hit[3] > 0.03: continue
+    target = np.array(hit[0]) + np.array(hit[1]) * LIFT
+    w = (1 - k / (FLAT_RINGS + 1)) ** 1.5
+    X[i] += (target - X[i]) * w; flat += 1
+print('RUFF flattened', flat, 'fringe points')
+moved = np.abs(X - X0).max(1) > 1e-7
+for kb in keys:
+    for i in np.nonzero(moved)[0]: kb.data[i].co = mwi @ (mw @ kb.data[i].co + Vector(X[i] - X0[i]))
+for i in np.nonzero(moved)[0]: ob.data.vertices[i].co = mwi @ Vector(X[i])
+bpy.context.view_layer.update()
+print('RUFF tucked', int(moved.sum()), 'points; outline', len(outer))
+
 # --- the ear tufts carry no fur: the pack makes them separate small pieces (17 and 18 in the toon_parts listing, and
 # the inner-ear linings 19 and 20 they sit on), so they are marked in the model itself — a point attribute `_fur` (0 = bare) that the game's fur reads
 import bmesh
@@ -242,6 +424,8 @@ for name, off in (('front', Vector((0.25, -0.85, 0.12))), ('side', Vector((0.9, 
 with bpy.data.libraries.load(P('art/minka/v2/minka-v2-shape.blend')) as (src, dst):
     dst.objects = [n for n in src.objects if n == 'ref_MinkaBody']
 ref = dst.objects[0]; sc.collection.objects.link(ref)
+bpy.context.view_layer.update()
+ref.location.z -= min((ref.matrix_world @ v.co).z for v in ref.data.vertices)   # on the ground too, for a fair comparison
 for name, off in (('side', Vector((0.9, 0.05, 0.08))), ('front', Vector((0.25, -0.85, 0.12)))):
     cm = bpy.data.objects.new(name, bpy.data.cameras.new(name)); sc.collection.objects.link(cm); sc.camera = cm
     cm.location = c + off; cm.data.lens = 50

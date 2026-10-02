@@ -267,11 +267,17 @@ export function hintWithPlan(state: GameState, seat: number, draft: Placed[], bu
   const onTable = new Set(draft.map((p) => p.id));
   const rackLeft = me.rack.filter((id) => id >= 0 && !onTable.has(id));
   const raw = earlier && planFits(earlier, draft, rackLeft) ? earlier : hintPlan(state, seat, draft, budget);
-  if (!raw) return { step: null, plan: null };
+  const start = new Set(state.board.map((p) => p.id));
+  // no step toward a plan, but tiles of yours lie in lines that are not legal: the next step is taking one back
+  const takeOneBack = (): Step | null => {
+    const bad = new Set(segments(draft).filter((g) => !evalMeld(g.ids.map((id) => state.tiles[id]), state.rules).ok).flatMap((g) => g.ids));
+    const p = draft.find((q) => !start.has(q.id) && bad.has(q.id));
+    return p ? { id: p.id, r: p.r, c: p.c, toRack: true } : null;
+  };
+  if (!raw) return { step: takeOneBack(), plan: null };
   const plan = matchTwins(raw, draft, state.tiles);
-  return { plan, step: bestStep(plan, draft, {
-    tiles: state.tiles, rules: state.rules, opened: me.opened, tableAtStart: new Set(state.board.map((p) => p.id)),
-  }, new Set(me.rack)) };
+  const step = bestStep(plan, draft, { tiles: state.tiles, rules: state.rules, opened: me.opened, tableAtStart: start }, new Set(me.rack));
+  return { plan, step: step ?? takeOneBack() };
 }
 
 /** Legal melds that use every tile in `must` and as many of `may` as is best, or null. */
@@ -352,8 +358,30 @@ export function hintPlan(state: GameState, seat: number, draft: Placed[], budget
       const simple = chooseMove({ ...state, board: draft, players: state.players.map((p, i) => (i === seat ? { ...p, rack: rackLeft } : p)) }, seat, 2, budget);
       if (simple && segments(simple.board).every((g) => evalMeld(g.ids.map((id) => tiles[id]), rules).ok)) return segments(simple.board).map((g) => g.ids);
     }
-    // otherwise everything on the table now stays on it, every line ends up legal, and the best is added from the rack
-    return solveAll(draft.map((p) => p.id), rackLeft, tiles, rules, budget);
+    // otherwise your own moves count (2026-10-02, "the hints do not take the player moves into account"): every
+    // legal line you have stays exactly as it is, and only the unfinished lines are solved, with the rack's help
+    // Tiles that were on the table when your turn began must stay on it; tiles you laid this turn are yours to use
+    // or take back — one that fits nowhere goes back to the rack (the first kind of step)
+    const ok = (m: number[]) => evalMeld(m.map((id) => tiles[id]), rules).ok;
+    const good = lines.filter(ok), broken = lines.filter((m) => !ok(m)).flat();
+    // the legal lines most likely to give or take a tile from the unfinished ones (same number, or same color close
+    // by) are opened up a few at a time — small searches, and the rest of your table stays exactly as you have it
+    const near = (a: Tile, b: Tile) => a.joker || b.joker || a.num === b.num || (a.color === b.color && Math.abs(a.num - b.num) <= 2);
+    const related = good.map((m) => ({ m, n: broken.filter((id) => m.some((x) => near(tiles[x], tiles[id]))).length }))
+      .sort((a, b) => b.n - a.n).filter((x) => x.n > 0).map((x) => x.m);
+    let tried = -1;
+    for (const k of [0, 2, 4, 8]) {
+      const open = related.slice(0, k);
+      if (open.length === tried) break;                       // no more related lines to open
+      tried = open.length;
+      const pool = [...broken, ...open.flat()];
+      const rest = solveAll(pool.filter((id) => start.has(id)), [...rackLeft, ...pool.filter((id) => !start.has(id))], tiles, rules, budget);
+      if (rest) return [...good.filter((m) => !open.includes(m)), ...rest];
+    }
+    // only when that cannot work: everything that was on the table stays on it, every line legal, the best added —
+    // and if even that search gives up, the table as your turn began (always legal: the steps lead back to it)
+    return solveAll(draft.filter((p) => start.has(p.id)).map((p) => p.id), [...rackLeft, ...draft.filter((p) => !start.has(p.id)).map((p) => p.id)], tiles, rules, budget)
+      ?? segments(state.board).map((g) => g.ids);
   }
   // the opening: the table you found stays as it is; your laid tiles are kept when they can be part of 30 points
   const startMelds = segments(state.board).map((g) => g.ids);

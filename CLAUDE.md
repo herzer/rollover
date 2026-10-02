@@ -107,14 +107,19 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   (`FurFrame`; v2 faces +z) and shortens fur by distance to the eyeballs; per-model brush file `furMaskFile()`.
 - **Versions are kept (her rule, 2026-10-02):** every iteration goes into `art/minka/versions/<date>-<id>/` via
   `python3 scripts/minka/snapshot.py` (model, .blend, previews, the scripts that built it, notes); `index.json` names
-  the `current` one, which the preview opens; its Version menu switches. **Current: Toon Minka 8** (stripes and eye area painted in 3D after her film stills, `minka_toon_texture.py`; only the ear tufts bare) (`build_toon_minka.py`: Minka's legs, head 1.2×, tail 0.6×; the pack's painting in her colors via its ID map, `minka_toon_texture.py` — never map her baked texture onto the toon face, it went creepy in Toon 4; shell fur, bare ear tufts via the `_fur` attribute, black whiskers) —
+  the `current` one, which the preview opens; its Version menu switches. **Current: Toon Minka 13** (2026-10-02, Toon 12 + the cheek ruff tucked in: tufts smoothed, fringe laid flat, head outline fitted to Minka's width):
+  Stefanie's Gemini repaint of the coat (`art/minka/gemini/`, adopted by `scripts/blender/adopt_coat.py`: gaps filled,
+  Gemini's misplaced tail and paw removed, its painted whiskers taken off), on **Minka's build** (`build_toon_minka.py`
+  FIT: body, neck, legs and toes take her place relative to the bones, from the v2 fit; head raised `NECK_UP` 0.75 —
+  the toon read as "a Bulldog"), with **stripes that flow** across seams (`scripts/blender/flow_stripes.py`: Gemini's
+  body stripes lifted and repainted from one 3D pattern; face and ears stay Gemini's). Build:
+  `COAT=art/minka/toon/coat-minka-flow.png blender -b --python scripts/blender/build_toon_minka.py`. Before that: Toon Minka 8 (stripes and eye area painted in 3D after her film stills, `minka_toon_texture.py`; only the ear tufts bare) (`build_toon_minka.py`: Minka's legs, head 1.2×, tail 0.6×; the pack's painting in her colors via its ID map, `minka_toon_texture.py` — never map her baked texture onto the toon face, it went creepy in Toon 4; shell fur, bare ear tufts via the `_fur` attribute, black whiskers) —
   from Toon Minka 1, which she chose 2026-10-02 as the starting point; made more Minka-like one step at a time.
 - **Minka is in the game (2026-10-02):** `src/ui/minkacat.ts` replaces the drawn kitten on the rack corner (same
   reactions in `kitty.ts`: idles / sleep / hop / pounce / jumps / petted; `?kitty=classic` shows the old kitten, which
   also stays if 3D fails). The game loads `public/minka/minka.glb` — a kept version published with
   `blender -b --python scripts/blender/export_game_minka.py -- art/minka/versions/<id>/minka-toon.blend` (JPEG
-  textures, ~1.9 MB; `public/minka/VERSION` names it). Iterating in the previewer never changes the game. In the game
-  now: Toon Minka 8. **Only the published `minka.glb` goes into git**: `art/` and the `Toon Cats/` pack are
+  textures, ~1.9 MB; `public/minka/VERSION` names it). Iterating in the previewer never changes the game. In the game now: Toon Minka 13 (2026-10-02). **Only the published `minka.glb` goes into git**: `art/` and the `Toon Cats/` pack are
   `.gitignore`d (the pack is licensed; never commit or redistribute its files; the repo is public).
 - **RummyCat's cat = the cartoon Minka (decided 2026-10-01).** First attempt below (cartoon-1) was rejected; we restart
   from Toon Minka 1. A cartoon version of Minka on the purchased Toon Cats

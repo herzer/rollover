@@ -657,21 +657,17 @@ export class GameView {
     switch (a) {
       case 'undo':
         this.clearToast();
+        this.hint = null; this.hintPlan = null;
         this.draft = s.board.map((p) => ({ ...p }));
         this.selected.clear();
         this.sendDraft();
         this.render();
         break;
-      case 'hint': {
-        // one next step, planned from the table as you have it — nothing is moved for you (2026-10-02)
-        const h = hintWithPlan(s, this.seat, this.draft ?? s.board, 80000, this.hintPlan);
-        this.hint = h.step; this.hintPlan = h.plan;
-        const changed = (this.draft ?? []).length !== s.board.length;
-        if (this.hint) this.toast(this.hint.toRack ? t().hintToRack : t().hintStep, false, '', true);
-        else this.toast(changed && checkBoard(this.draft!, s.tiles, s.rules).ok ? t().readyDone : t().hintNone);
+      case 'hint':
+        this.hintPlan = null;
+        this.showHint();
         this.render();
         break;
-      }
       case 'draw':
         this.draft = s.board.map((p) => ({ ...p }));
         this.selected.clear();
@@ -969,10 +965,35 @@ export class GameView {
     return boardAfterDrop(this.draft!, r, c, ids, moves);
   }
 
+  /** One next step, planned from the table as you have it now — nothing is moved for you (2026-10-02). The plan is
+   *  kept only while you follow it (`hintPlan`); any move of your own makes it plan afresh. */
+  private showHint() {
+    const s = this.s!;
+    const h = hintWithPlan(s, this.seat, this.draft ?? s.board, 80000, this.hintPlan);
+    this.hint = h.step; this.hintPlan = h.plan;
+    const changed = (this.draft ?? []).length !== s.board.length;
+    if (this.hint) this.toast(this.hint.toRack ? t().hintToRack : t().hintStep, false, '', true);
+    else { this.hintPlan = null; this.toast(changed && checkBoard(this.draft!, s.tiles, s.rules).ok ? t().readyDone : t().hintNone); }
+  }
+
   private drop(area: Area, r: number, c: number, ids: number[]): boolean {
     const plan = this.planDrop(area, r, c, ids);
     if (!plan.ok) { if (plan.why) this.toast(plan.why, true); return false; }
-    if (this.hint) { this.hint = null; this.clearToast(); }      // you moved: the next hint plans from here
+    // a hint on screen follows every move (2026-10-02, "they need to be recalculated each move"): it is worked out
+    // again from the table as it is after this drop — keeping its plan only when this drop was the step it showed
+    const hint = this.hint, tableBefore = JSON.stringify(this.draft);
+    if (hint) { this.hint = null; this.clearToast(); }
+    const result = this.dropTiles(area, r, c, ids, plan);
+    if (hint && this.myTurn) {
+      const at = this.draft?.find((p) => p.id === hint.id);
+      const followed = ids.length === 1 && ids[0] === hint.id && (hint.toRack ? area === 'rack' : !!at && at.r === hint.r && at.c === hint.c);
+      if (JSON.stringify(this.draft) === tableBefore) { this.hint = hint; this.toast(hint.toRack ? t().hintToRack : t().hintStep, false, '', true); }
+      else { if (!followed) this.hintPlan = null; this.showHint(); }
+    } else if (JSON.stringify(this.draft) !== tableBefore) this.hintPlan = null;
+    return result;
+  }
+
+  private dropTiles(area: Area, r: number, c: number, ids: number[], plan: { ok: true; c: number; moves: Map<number, number> }): boolean {
     const moving = new Set(ids);
     // a line that loses tiles closes up when the rest is legal only together (a group of four, minus one)
     const s = this.s!;
