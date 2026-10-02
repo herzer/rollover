@@ -1,8 +1,8 @@
 // The game screen: felt table, wooden rack, and every tile as one element in a layer
 // above both — so a tile glides from the rack to the table instead of jumping.
 
-import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, findSpot, segments, type Placed } from '../engine/board';
-import { meldProblem } from '../engine/melds';
+import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, findSpot, relayRow, segments, type Placed } from '../engine/board';
+import { legalSplit, meldAround, meldProblem } from '../engine/melds';
 import { chooseMove, rackMelds, type Move } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
 import type { Tile } from '../engine/tiles';
@@ -731,13 +731,16 @@ export class GameView {
 
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** The meld a tile sits in — on the table, or side by side on the rack. */
+  /** The meld a tile sits in — on the table, or side by side on the rack. Only the tiles that belong together
+   *  (a meld, or a pair that could start one); a tile that merely touches them stays put (2026-10-02). */
   private meldOf(id: number): number[] {
     const onBoard = this.displayBoard().some((p) => p.id === id);
     const cells = onBoard
       ? this.displayBoard()
       : this.rackIds().map((x) => ({ id: x, ...this.rackPos.get(x)! }));
-    return segments(cells).find((g) => g.ids.includes(id))?.ids ?? [id];
+    const ids = segments(cells).find((g) => g.ids.includes(id))?.ids ?? [id];
+    const [a, b] = meldAround(ids.map((x) => this.s!.tiles[x]), ids.indexOf(id), this.s!.rules);
+    return ids.slice(a, b);
   }
 
   private onDown = (e: PointerEvent) => {
@@ -911,8 +914,25 @@ export class GameView {
     }
     if (!ok) return { ok: false };
     // before your opening the table must stay exactly as it is, so its tiles are never pushed aside
-    if (area === 'board' && !s.players[this.seat].opened && [...moves.keys()].some((id) => tableAtStart.has(id))) {
+    const opened = s.players[this.seat].opened;
+    if (area === 'board' && !opened && [...moves.keys()].some((id) => tableAtStart.has(id))) {
       return { ok: false, why: t().errors['opening-touched-table'] };
+    }
+    // dropped in between tiles where the line only becomes legal split in two (or three): split it (2026-10-02)
+    if (area === 'board') {
+      const after = this.boardAfter(r, c, ids, moves);
+      const seg = segments(after).find((x) => x.ids.includes(ids[0]));
+      const from = seg ? seg.ids.indexOf(ids[0]) : -1;
+      const cuts = seg ? legalSplit(seg.ids.map((id) => s.tiles[id]), from, from + n, s.rules) : null;
+      if (seg && cuts) {
+        const col = relayRow(after.filter((p) => p.r === r), new Set(cuts.map((k) => seg.ids[k])), cols);
+        const was = new Map(this.draft!.map((p) => [p.id, p.c]));
+        const split = new Map<number, number>();
+        if (col) for (const [id, nc] of col) if (!moving.has(id) && nc !== was.get(id)) split.set(id, nc);
+        if (col && (opened || ![...split.keys()].some((id) => tableAtStart.has(id)))) {
+          return { ok: true, c: col.get(ids[0])!, moves: split };
+        }
+      }
     }
     return { ok: true, c, moves };
   }
@@ -988,8 +1008,7 @@ export class GameView {
     const onBoard = this.displayBoard().find((p) => p.id === id);
     if (onBoard && this.lastClick.id === id && now - this.lastClick.at < 380) {
       // double tap on the table picks up the whole meld
-      const seg = segments(this.displayBoard()).find((g) => g.ids.includes(id));
-      if (seg) { this.selected = new Set(seg.ids); }
+      this.selected = new Set(this.meldOf(id));
       this.lastClick = { id: -1, at: 0 };
     } else {
       if (this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);

@@ -200,11 +200,12 @@ function furMask(mesh: THREE.SkinnedMesh, height: number, realParts = false, fra
       }
     }
   }
-  // what the model itself marks bare (a `_fur` point attribute, 0 = no fur; the toon Minka's ear tufts)
+  // what the model itself marks bare (a `_fur` point attribute, 0 = no fur; the toon Minka's ear tufts). A model
+  // that marks its own bare parts skips the ear guesswork below: on the toon mesh it bared each whole ear (2026-10-02)
   const own = geo.attributes._fur;
   if (own) for (let i = 0; i < n; i++) len[i] = Math.min(len[i], own.getX(i));
   // the inner-ear lining (pink skin with the guard hairs painted on it)
-  const lining = earGuardHairs(geo, pink, pos, box);
+  const lining = own ? [] : earGuardHairs(geo, pink, pos, box);
   for (const i of lining) len[i] = 0;
   // and its rim: the guard hairs are painted on past the lining's edge, finer than the mesh's points, so the
   // shader drops strands on their pale pixels — only here, within a hair's length of the lining

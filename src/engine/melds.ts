@@ -95,3 +95,46 @@ export function meldProblem(tiles: Tile[], rules: Pick<Rules, 'rollover'>): Meld
   if (real.every((t) => t.color === real[0].color)) return tiles.length > 13 ? 'long' : 'gap';
   return 'mixed';
 }
+
+/** Whether tiles side by side belong together: a valid meld, or a pair that could start one (same number in two
+ *  colors, or neighbors in one color — 13 and 1 too with the rollover rule; a joker goes with anything). */
+export function belongsTogether(tiles: Tile[], rules: Pick<Rules, 'rollover'>): boolean {
+  if (tiles.length < 2) return true;
+  if (tiles.length >= 3) return evalMeld(tiles, rules).ok;
+  const [a, b] = tiles;
+  if (a.joker || b.joker) return true;
+  if (a.num === b.num) return a.color !== b.color;
+  if (a.color !== b.color) return false;
+  const d = Math.abs(a.num - b.num);
+  return d === 1 || (rules.rollover && d === 12);
+}
+
+/** The tiles a press-and-hold picks up (2026-10-02, Stefanie: keep tiles that don't belong apart): within a line of
+ *  tiles, the longest stretch around tile `i` that belongs together; just that tile when nothing does. */
+export function meldAround(tiles: Tile[], i: number, rules: Pick<Rules, 'rollover'>): [number, number] {
+  for (let len = tiles.length; len >= 2; len--) {
+    for (let a = Math.max(0, i - len + 1); a <= i && a + len <= tiles.length; a++) {
+      if (belongsTogether(tiles.slice(a, a + len), rules)) return [a, a + len];
+    }
+  }
+  return [i, i + 1];
+}
+
+/** Where to split a line of tiles that tiles were just dropped into (at `from`..`to`, exclusive), so that every
+ *  part is a valid meld: before the dropped tiles, after them, or both. Null when the line is fine as it is or no
+ *  split makes it legal (2026-10-02, Stefanie: "when dropping a tile in between things that will be legal when
+ *  split, that split should just be made"). */
+export function legalSplit(tiles: Tile[], from: number, to: number, rules: Pick<Rules, 'rollover'>): number[] | null {
+  if (evalMeld(tiles, rules).ok) return null;
+  const ok = (cuts: number[]) => {
+    const edges = [0, ...cuts, tiles.length];
+    for (let k = 0; k + 1 < edges.length; k++) {
+      if (edges[k] === edges[k + 1] || !evalMeld(tiles.slice(edges[k], edges[k + 1]), rules).ok) return false;
+    }
+    return true;
+  };
+  for (const cuts of [[from], [to], [from, to]]) {
+    if (cuts.every((c) => c > 0 && c < tiles.length) && ok(cuts)) return cuts;
+  }
+  return null;
+}

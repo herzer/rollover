@@ -133,3 +133,17 @@ function indexOfRun(hay: number[], needle: number[]): number {
   }
   return -1;
 }
+
+/** Re-lays one row of the table with a gap opened before each tile in `cutBefore`, keeping tiles that touched
+ *  touching and melds that were apart apart. New columns by id, or null when the row would run off the table. */
+export function relayRow(row: Placed[], cutBefore: Set<number>, cols = BOARD_COLS): Map<number, number> | null {
+  const col = new Map<number, number>();
+  let prevOld = -1, prevNew = -1;
+  for (const p of [...row].sort((a, b) => a.c - b.c)) {
+    const touching = prevOld >= 0 && p.c === prevOld + 1 && !cutBefore.has(p.id);
+    const nc = prevOld < 0 ? p.c : touching ? prevNew + 1 : Math.max(p.c, prevNew + 2);
+    if (nc >= cols) return null;
+    col.set(p.id, nc); prevOld = p.c; prevNew = nc;
+  }
+  return col;
+}

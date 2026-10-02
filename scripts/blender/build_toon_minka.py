@@ -9,6 +9,7 @@
 # and the eyes keep the toon's (approved) size within the head.
 # Toon Minka 3 (2026-10-02): bare ear tufts (`_fur` attribute) and her modeled whiskers.
 # Toon Minka 4 (2026-10-02): Minka's own coat (the v2 bake) instead of the pack's painted one; white whiskers.
+# Toon Minka 8 (2026-10-02): only the ear tufts are bare (Toon 3–7 also bared the linings and the ear opening).
 # Toon Minka 5 (2026-10-02): back to the pack's painting, recolored in Minka's colors (minka_toon_texture.py) — the
 # baked coat made the face creepy; whiskers black again.
 # Versions: Toon Minka 1 (2026-10-01, kitten proportions by eye) is kept in art/minka/versions/2026-10-01-toon-1;
@@ -167,24 +168,11 @@ pieces.sort(key=lambda p_: -len(p_))
 piece_of = np.zeros(nv, int)
 for i, p_ in enumerate(pieces): piece_of[p_] = i
 TUFTS = (17, 18)
-INNER_EARS = (19, 20)                # the inner-ear linings, with the hair strokes the pack paints on them
-BARE = TUFTS + INNER_EARS
-# and the ear opening around them: the outer ear's rim and the forehead fur next to the tufts grew strands into it.
-# Bare within NEAR of a tuft or lining point, full fur again by FAR (ear tips and backs keep theirs)
-NEAR, FAR = 0.004, 0.009
-PW = np.array([tuple(mw @ v.co) for v in ob.data.vertices])
-from mathutils.kdtree import KDTree
-kb_ = KDTree(int(np.isin(piece_of, BARE).sum()))
-for i in np.where(np.isin(piece_of, BARE))[0]: kb_.insert(Vector(PW[i]), int(i))
-kb_.balance()
+INNER_EARS = (19, 20)                # the inner-ear linings the tufts sit on (bare in Toon Minka 3–7; furry again since 8)
+BARE = TUFTS                         # 2026-10-02: "shrink the bare zone on her ears to just the tufts"
 furattr = ob.data.attributes.new('_fur', 'FLOAT', 'POINT')
-for i in range(nv):
-    if piece_of[i] in BARE: furattr.data[i].value = 0.0; continue
-    d = kb_.find(Vector(PW[i]))[2]
-    t = min(1.0, max(0.0, (d - NEAR) / (FAR - NEAR)))
-    furattr.data[i].value = t * t * (3 - 2 * t)
-vals = np.array([furattr.data[i].value for i in range(nv)])
-print('BARE ear tufts and linings', int(np.isin(piece_of, BARE).sum()), 'points; ear opening', int(((vals < 0.99) & ~np.isin(piece_of, BARE)).sum()), 'more')
+for i in range(nv): furattr.data[i].value = 0.0 if piece_of[i] in BARE else 1.0
+print('BARE ear tufts', int(np.isin(piece_of, BARE).sum()), 'points')
 
 # --- her whiskers: the modeled black ones (build_minka.py), carried over from Minka v2 — each strand rides with the
 # muzzle point it grows from (v2 has the toon's points, minus the tufts, in the same order)

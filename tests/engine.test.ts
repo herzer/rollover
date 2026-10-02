@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { evalMeld } from '../src/engine/melds';
+import { evalMeld, belongsTogether, meldAround, legalSplit } from '../src/engine/melds';
 import type { Tile, Color } from '../src/engine/tiles';
-import { checkBoard, layoutMelds, segments, type Placed } from '../src/engine/board';
+import { checkBoard, layoutMelds, relayRow, segments, type Placed } from '../src/engine/board';
 import { newGame, commitTurn, drawTile, validateCommit, type GameState } from '../src/engine/game';
 import { chooseMove } from '../src/engine/ai';
 
@@ -171,5 +171,47 @@ describe('fairness and safety', () => {
     expect(r.seed).toBe(0);
     expect(r.players[0].rack.every((id) => id === -1)).toBe(true);
     expect(r.pool.every((id) => id === -1)).toBe(true);
+  });
+});
+
+describe('picking up and dropping between tiles (2026-10-02)', () => {
+  it('picks up only the tiles that belong together', () => {
+    // a run of three, then a stray red 11 touching it
+    const line = [T(1, 4), T(1, 5), T(1, 6), T(0, 11)];
+    expect(meldAround(line, 1, ROLL)).toEqual([0, 3]);
+    expect(meldAround(line, 3, ROLL)).toEqual([3, 4]);
+    // a pair that could start a run still goes together; unrelated neighbors do not
+    expect(meldAround([T(2, 8), T(2, 9), T(3, 1)], 0, ROLL)).toEqual([0, 2]);
+    expect(meldAround([T(2, 8), T(3, 1)], 0, ROLL)).toEqual([0, 1]);
+    expect(belongsTogether([T(0, 13), T(0, 1)], ROLL)).toBe(true);
+    expect(belongsTogether([T(0, 13), T(0, 1)], CLASSIC)).toBe(false);
+  });
+  it('splits a line where every part becomes legal', () => {
+    // 3-4-5-6-7 in blue, a blue 5 dropped after the 5 → 3-4-5 | 5-6-7
+    const line = [T(1, 3), T(1, 4), T(1, 5), T(1, 5), T(1, 6), T(1, 7)];
+    expect(legalSplit(line, 3, 4, ROLL)).toEqual([3]);
+    // a run dropped into the middle of another: split on both sides
+    const mid = [T(0, 1), T(0, 2), T(0, 3), T(3, 9), T(3, 10), T(3, 11), T(0, 4), T(0, 5), T(0, 6)];
+    expect(legalSplit(mid, 3, 6, ROLL)).toEqual([3, 6]);
+    // already legal, or no split helps: nothing to do
+    expect(legalSplit([T(1, 3), T(1, 4), T(1, 5), T(1, 6)], 3, 4, ROLL)).toBeNull();
+    expect(legalSplit([T(1, 3), T(1, 4), T(0, 9), T(1, 5)], 2, 3, ROLL)).toBeNull();
+  });
+});
+
+describe('splitting a row on the table (2026-10-02)', () => {
+  it('opens a gap at the cut and keeps the melds after it apart', () => {
+    // six tiles at columns 2..7, cut before the 4th; a separate meld starts at 9
+    const row: Placed[] = [1, 2, 3, 4, 5, 6].map((id, k) => ({ id, r: 0, c: 2 + k }));
+    row.push({ id: 7, r: 0, c: 9 }, { id: 8, r: 0, c: 10 }, { id: 9, r: 0, c: 11 });
+    const col = relayRow(row, new Set([4]))!;
+    expect([1, 2, 3].map((id) => col.get(id))).toEqual([2, 3, 4]);
+    expect([4, 5, 6].map((id) => col.get(id))).toEqual([6, 7, 8]);
+    expect([7, 8, 9].map((id) => col.get(id))).toEqual([10, 11, 12]);    // pushed along, still one meld, still apart
+    expect(segments(row.map((p) => ({ ...p, c: col.get(p.id)! }))).map((s) => s.ids)).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+  });
+  it('gives up when the row would run off the table', () => {
+    const row: Placed[] = [1, 2, 3, 4].map((id, k) => ({ id, r: 0, c: 22 + k }));
+    expect(relayRow(row, new Set([3]), 26)).toBeNull();
   });
 });
