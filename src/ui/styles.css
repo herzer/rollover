@@ -251,7 +251,9 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
     inset 0 1.5px 0 #fff, inset 0 -2.5px 2px rgba(160,130,80,.35),
     0 0 0 3px var(--gold), 0 calc(var(--tw) * .3) calc(var(--tw) * .3) rgba(20,15,5,.35); }
 .tile.hint { animation: hintbob 1s ease-in-out infinite; box-shadow: inset 0 1.5px 0 #fff, 0 0 0 3px #59d9a0, 0 6px 12px rgba(0,0,0,.3); }
-@keyframes hintbob { 50% { transform: var(--pos) translateY(-6px); } }
+/* the bob is its own `translate`, on top of whatever transform the tile has: a selected tile (raised, !important) and
+   the leaning 3D tiles kept their transform and froze the bob when it animated `transform` itself (2026-10-02) */
+@keyframes hintbob { 50% { translate: 0 -6px; } }
 .tile.fresh { animation: fresh 2.6s ease-out; }
 @keyframes fresh { 0%, 40% { box-shadow: 0 0 0 3px var(--gold), 0 0 18px 6px rgba(255,214,80,.75); } }
 .tile.dragging { transition: none; z-index: 50; cursor: grabbing; filter: brightness(1.03);
@@ -379,7 +381,7 @@ input.field:focus, select.field:focus { outline: none; border-color: var(--accen
 @keyframes minka-breathe { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.02); } }
 .kitty.minka.happy img { animation: hop .45s ease-in-out 3; }
 .kitty.minka.sleep:not(.happy) img { filter: drop-shadow(0 6px 5px rgba(50,30,10,.35)) saturate(.8) brightness(.94); }
-@media (prefers-reduced-motion: reduce) { .kitty .k-tail, .kitty .k-eyes-open, .kitty.roll svg, .kitty.party svg { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tile.hint { animation: none; } .kitty .k-tail, .kitty .k-eyes-open, .kitty.roll svg, .kitty.party svg { animation: none; } }
 
 .tile .jk svg.kface { stroke: none !important; width: 100%; height: auto; }
 .tile.joker .jk { width: 74%; filter: drop-shadow(0 1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 1px rgba(80,40,0,.25)); }
