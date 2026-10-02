@@ -3,7 +3,7 @@
 
 import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, closeUp, findSpot, relayRow, segments, type Placed } from '../engine/board';
 import { legalSplit, meldAround, meldProblem } from '../engine/melds';
-import { chooseMove, rackMelds, type Move } from '../engine/ai';
+import { chooseMove, hintStep, rackMelds, type Step } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
 import type { Tile } from '../engine/tiles';
 import type { Client, ClientEvent } from '../net/client';
@@ -89,7 +89,7 @@ export class GameView {
   private prevRack: Set<number> | null = null;
   private rackPos = new Map<number, { r: number; c: number }>();
   private selected = new Set<number>();
-  private hint: Move | null = null;
+  private hint: Step | null = null;
   private drag: Drag | null = null;
   private lastClick = { id: -1, at: 0 };
   private tw = 44; private th = 58; private gap = 4;
@@ -388,7 +388,7 @@ export class GameView {
     if (key !== this.turnKey) { this.turnKey = key; this.turnSince = Date.now(); }
     const mineInState = s.phase === 'playing' && s.turn === this.seat;
     if (mineInState) {
-      if (this.draftKey !== key || !this.draft) { this.draft = s.board.map((p) => ({ ...p })); this.hint = null; this.validKeys.clear(); }
+      if (this.draftKey !== key || !this.draft) { this.draft = this.savedDraft(s, key) ?? s.board.map((p) => ({ ...p })); this.hint = null; this.validKeys.clear(); }
     } else { this.draft = null; this.hint = null; }
     this.draftKey = key;
     if (s.seq !== this.sentSeq) this.sentSeq = -1;
@@ -484,10 +484,10 @@ export class GameView {
       return `<div class="seg ok rackseg${g.eval.wraps ? ' wrap' : ''}" style="left:${x}px;top:${y}px;width:${g.ids.length * (this.rtw + this.gap) - this.gap + 6}px;height:${this.rth + 6}px"></div>`;
     }).join('');
     if (!this.drag?.active) {
-      const spots = this.hint && mine ? this.hint.board.filter((p) => this.hint!.played.includes(p.id)).map((p) => {
-        const xy = this.cellXY('board', p.r, p.c);
+      const spots = this.hint && mine ? (() => {
+        const xy = this.cellXY('board', this.hint!.r, this.hint!.c);
         return `<div class="ghost hintspot" style="left:${xy.x - 2}px;top:${xy.y - 2}px;width:${this.tw + 4}px;height:${this.th + 4}px"></div>`;
-      }).join('') : '';
+      })() : '';
       this.overlay.innerHTML = spots + okSegs.map((g) => {
         const xy = this.cellXY('rack', g.r, g.c);
         const label = `${g.eval.kind === 'group' ? t().kindGroup : t().kindRun} · ${g.eval.value}`;
@@ -527,7 +527,7 @@ export class GameView {
       el.classList.toggle('locked', !movable);
       el.classList.toggle('onrack', pos.area === 'rack');
       el.classList.toggle('sel', this.selected.has(id));
-      el.classList.toggle('hint', !!this.hint && this.hint.played.includes(id) && pos.area === 'rack');
+      el.classList.toggle('hint', !!this.hint && this.hint.id === id);
       el.classList.toggle('ghosted', pos.area === 'board' && watching && !mine && !tableAtStart.has(id));
       el.title = '';
     }
@@ -643,25 +643,6 @@ export class GameView {
       case 'sortGroups': this.sortRack('groups'); return;
       case 'next': this.client.host?.nextRound(); return;
       case 'closeModal': this.closeModal(); return;
-      case 'showMe': {
-        if (!this.hint || !this.myTurn) return;
-        const played = this.hint.played;
-        this.draft = this.hint.board.map((p) => ({ ...p }));
-        this.hint = null;
-        this.sendDraft();
-        this.render();
-        sfx.place();
-        // what changed glows, and the next step is right there in the message
-        for (const id of played) {
-          const el = this.tileEls.get(id);
-          if (!el) continue;
-          el.classList.add('drawn', 'boing');
-          setTimeout(() => el.classList.remove('drawn', 'boing'), 5000);
-        }
-        this.toast(t().laidForYou(played.length), false,
-          `<button class="btn sm" data-act="undo" title="${esc(t().undoTip)}">${icon('undo', 15)}${t().undo}</button><button class="btn sm primary" data-act="done" title="${esc(t().doneTip)}">${icon('check', 15)}${t().done}</button>`, true);
-        return;
-      }
     }
     if (!s || !this.myTurn) return;
     switch (a) {
@@ -673,9 +654,11 @@ export class GameView {
         this.render();
         break;
       case 'hint': {
-        this.hint = chooseMove(s, this.seat, 3, 80000);
-        if (!this.hint) this.toast(t().hintNone);
-        else this.toast(t().hintSome(this.hint.played.length), false, `<button class="btn sm primary" data-act="showMe" title="${esc(t().showMeTip)}">${t().showMe}</button>`, true);
+        // one next step, planned from the table as you have it — nothing is moved for you (2026-10-02)
+        this.hint = hintStep(s, this.seat, this.draft ?? s.board);
+        const changed = (this.draft ?? []).length !== s.board.length;
+        if (this.hint) this.toast(t().hintStep, false, '', true);
+        else this.toast(changed && checkBoard(this.draft!, s.tiles, s.rules).ok ? t().readyDone : t().hintNone);
         this.render();
         break;
       }
@@ -751,7 +734,21 @@ export class GameView {
     this.saveRack();
   }
 
+  // the table as you have it this turn survives a reload (the dev server reloads on every code change; a refresh or
+  // reopening the game did the same): kept per game, seat and turn (2026-10-02)
+  private draftStore() { const s = this.s; return s ? `rollover.draft.${s.gameId}.${this.seat}` : ''; }
+  private savedDraft(s: GameState, key: string): Placed[] | null {
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.draftStore()) || 'null') as { key: string; board: Placed[] } | null;
+      if (!saved || saved.key !== key) return null;
+      // only tiles that were on the table or in my rack at the start of this turn
+      const ok = new Set([...s.board.map((p) => p.id), ...s.players[this.seat].rack]);
+      return saved.board.every((p) => ok.has(p.id)) && s.board.every((p) => saved.board.some((q) => q.id === p.id)) ? saved.board : null;
+    } catch { return null; }
+  }
+
   private sendDraft() {
+    try { if (this.draft && this.s) localStorage.setItem(this.draftStore(), JSON.stringify({ key: `${this.s.round}:${this.s.turnNo}`, board: this.draft })); } catch { /* storage blocked */ }
     if (this.draftTimer) clearTimeout(this.draftTimer);
     this.draftTimer = setTimeout(() => {
       const s = this.s;
@@ -980,6 +977,7 @@ export class GameView {
   private drop(area: Area, r: number, c: number, ids: number[]): boolean {
     const plan = this.planDrop(area, r, c, ids);
     if (!plan.ok) { if (plan.why) this.toast(plan.why, true); return false; }
+    if (this.hint) { this.hint = null; this.clearToast(); }      // you moved: the next hint plans from here
     const moving = new Set(ids);
     // a line that loses tiles closes up when the rest is legal only together (a group of four, minus one)
     const s = this.s!;

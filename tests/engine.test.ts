@@ -3,7 +3,7 @@ import { evalMeld, belongsTogether, meldAround, legalSplit } from '../src/engine
 import type { Tile, Color } from '../src/engine/tiles';
 import { checkBoard, closeUp, layoutMelds, relayRow, segments, type Placed } from '../src/engine/board';
 import { newGame, commitTurn, drawTile, validateCommit, type GameState } from '../src/engine/game';
-import { chooseMove } from '../src/engine/ai';
+import { chooseMove, hintStep, stepToward } from '../src/engine/ai';
 
 let nextId = 1000;
 const T = (color: Color, num: number): Tile => ({ id: nextId++, color, num, joker: false, star: false });
@@ -239,5 +239,38 @@ describe('taking a tile out of a line (2026-10-02)', () => {
     const before: Placed[] = ids.map((id, k) => ({ id, r: 0, c: k }));
     const out = closeUp(before, before.filter((p) => p.id !== ids[1]), new Set([ids[1]]), tiles, ROLL, new Set(ids));
     expect(out.find((p) => p.id === ids[2])!.c).toBe(2);
+  });
+});
+
+describe('the hint: one next step, from the table as it is (2026-10-02)', () => {
+  it('adds the next tile to a meld you started', () => {
+    // rack: blue 6; the table has blue 3-4-5 → the next step puts the 6 right after the 5
+    const s = stateWith([T(1, 6), T(0, 1)], [[T(1, 3), T(1, 4), T(1, 5)]]);
+    const step = hintStep(s, 0, s.board)!;
+    const five = s.board.find((p) => s.tiles[p.id].num === 5)!;
+    expect(s.tiles[step.id].num).toBe(6);
+    expect([step.r, step.c]).toEqual([five.r, five.c + 1]);
+  });
+  it('keeps your own moves and plans from them', () => {
+    // you already laid the 6 after the 5; the rack's 7 is the next step, after your 6 — nothing is rolled back
+    const s = stateWith([T(1, 6), T(1, 7)], [[T(1, 3), T(1, 4), T(1, 5)]]);
+    const five = s.board.find((p) => s.tiles[p.id].num === 5)!;
+    const six = s.players[0].rack[0];
+    const draft: Placed[] = [...s.board, { id: six, r: five.r, c: five.c + 1 }];
+    const step = hintStep(s, 0, draft)!;
+    expect(s.tiles[step.id].num).toBe(7);
+    expect([step.r, step.c]).toEqual([five.r, five.c + 2]);
+  });
+  it('before the opening, keeps your finished melds and counts their points', () => {
+    // a group of 10s already laid (30 points): nothing more is needed — press Done
+    const s = stateWith([T(0, 10), T(1, 10), T(2, 10), T(0, 2)], [], false);
+    const [a, b, c] = s.players[0].rack;
+    expect(hintStep(s, 0, [{ id: a, r: 0, c: 0 }, { id: b, r: 0, c: 1 }, { id: c, r: 0, c: 2 }])).toBeNull();
+  });
+  it('starts a new meld in a free spot when none is started', () => {
+    const t = [T(2, 8), T(2, 9), T(2, 10)];
+    t.forEach((x, i) => (x.id = i));
+    const step = stepToward([[0, 1, 2]], [], t, ROLL)!;
+    expect(step.id).toBe(0);
   });
 });

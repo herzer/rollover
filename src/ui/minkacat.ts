@@ -26,6 +26,11 @@ export class MinkaCat {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private clock = new THREE.Clock();
   private cat!: THREE.Object3D;
+  /** While she walks: called every frame with how far (CSS px, along x) her planted paw moved on screen, so the
+   *  walker can move her the other way by exactly that much — a paw on the ground never moves (2026-10-02). */
+  onStep: ((dx: number) => void) | null = null;
+  private feet: THREE.Object3D[] = [];
+  private footPrev = new Map<THREE.Object3D, number>();
   private yaw = 0.35;                   // where she faces: 0.35 = turned a little toward the table, as she sits
   private static SIT = 0.35;
 
@@ -89,7 +94,8 @@ export class MinkaCat {
     addToonCatchlights(cat);
     this.mixer = new THREE.AnimationMixer(cat);
     for (const clip of gltf.animations) this.actions.set(clip.name.replace(/^AS_StylizedCat_/, ''), this.mixer.clipAction(clip));
-    this.stride = this.measureStride();
+    this.feet = ['PawEnd_L', 'PawEnd_R', 'HindPawEnd_L', 'HindPawEnd_R'].map((n) => cat.getObjectByName(n)).filter(Boolean) as THREE.Object3D[];
+    if (this.feet.length < 4) this.feet = ['Paw_L', 'Paw_R', 'HindPaw_L', 'HindPaw_R'].map((n) => cat.getObjectByName(n)).filter(Boolean) as THREE.Object3D[];
     this.mixer.addEventListener('finished', () => { this.busy = false; this.base(); });
 
     this.host.prepend(this.renderer.domElement);
@@ -100,46 +106,33 @@ export class MinkaCat {
       const dt = Math.min(this.clock.getDelta(), 0.1);
       this.cat.rotation.y += (this.yaw - this.cat.rotation.y) * Math.min(1, dt * 7);   // turns smoothly
       this.mixer.update(dt);
+      if (this.onStep) this.anchor(); else this.footPrev.clear();
       this.renderer.render(this.scene, this.camera);
     });
   }
 
-  /** How fast her body travels when she walks, in her own units a second, read off the walk clip so her paws do not
-   *  slide (2026-10-02): while a paw is down it moves backward under her at exactly the body's speed. */
-  private stride = 0.6;
-  private measureStride(): number {
-    const walk = this.actions.get('walk');
-    if (!walk) return 0.6;
-    const yaw = this.cat.rotation.y; this.cat.rotation.y = 0;          // forward = +z while measuring
-    walk.reset().play();
-    const dur = walk.getClip().duration, N = 60;
-    const paws = ['Paw_L', 'Paw_R', 'HindPaw_L', 'HindPaw_R'].map((n) => this.cat.getObjectByName(n)).filter(Boolean) as THREE.Object3D[];
-    const track = paws.map(() => [] as { y: number; z: number }[]);
-    const p = new THREE.Vector3();
-    for (let i = 0; i <= N; i++) {
-      this.mixer.setTime((i / N) * dur);
-      this.cat.updateMatrixWorld(true);
-      paws.forEach((b, k) => { b.getWorldPosition(p); track[k].push({ y: p.y, z: p.z }); });
+  /** The paw she stands on and how far it moved on screen since the last frame. A paw on the ground pushes backward
+   *  under her while a lifting one swings forward, so the anchor is, among the paws down this frame, the one pushing
+   *  back hardest — that paw stays exactly still on screen. */
+  private walkDir: -1 | 1 = 1;
+  private anchor() {
+    this.cat.updateMatrixWorld(true);
+    const p = new THREE.Vector3(), w = this.host.clientWidth;
+    const now = new Map<THREE.Object3D, { x: number; y: number }>();
+    for (const f of this.feet) {
+      f.getWorldPosition(p);
+      now.set(f, { y: p.y, x: (p.project(this.camera).x + 1) / 2 * w });
     }
-    walk.stop(); this.mixer.setTime(0); this.cat.rotation.y = yaw;
-    const speeds: number[] = [];
-    for (const t of track) {
-      const lo = Math.min(...t.map((q) => q.y)), hi = Math.max(...t.map((q) => q.y));
-      for (let i = 1; i < t.length; i++) {
-        if (t[i].y < lo + 0.15 * (hi - lo) && t[i - 1].y < lo + 0.15 * (hi - lo)) speeds.push(-(t[i].z - t[i - 1].z) / (dur / N));
-      }
+    const low = Math.min(...[...now.values()].map((q) => q.y));
+    let best = 0;
+    for (const [f, q] of now) {
+      const before = this.footPrev.get(f);
+      if (before === undefined || q.y > low + 0.012) continue;
+      const dx = q.x - before;
+      if (dx * -this.walkDir > best * -this.walkDir) best = dx;     // backward = against the way she walks
     }
-    speeds.sort((a, b) => a - b);
-    const v = speeds.length ? speeds[Math.floor(speeds.length / 2)] : 0.6;
-    return v > 0.05 ? v : 0.6;
-  }
-
-  /** Her walking speed on screen, pixels a second along x, for the way she faces now. */
-  speedPx(dir: -1 | 1): number {
-    const w = dir * Math.PI / 2 - dir * 0.45;
-    const f = new THREE.Vector3(Math.sin(w), 0, Math.cos(w));
-    const a = new THREE.Vector3(0, 0.05, 0).project(this.camera), b = new THREE.Vector3(0, 0.05, 0).addScaledVector(f, 1).project(this.camera);
-    return Math.abs(b.x - a.x) / 2 * this.host.clientWidth * this.stride;
+    this.footPrev = new Map([...now].map(([f, q]) => [f, q.x]));
+    this.onStep?.(best);
   }
 
   private resize() {
@@ -194,6 +187,7 @@ export class MinkaCat {
   /** Walking (her stroll across the table, driven by kitty.ts): sideways, -1 toward the left of the screen, 1 right,
    *  turned a little toward the player so her face shows. */
   walk(dir: -1 | 1) {
+    this.walkDir = dir;
     this.busy = true;
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.yaw = dir * Math.PI / 2 - dir * 0.45;

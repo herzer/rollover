@@ -5,7 +5,7 @@
 // The same search powers the hint button for people.
 
 import { typeOf, typeColor, typeNum, type Tile } from './tiles';
-import { segments, layoutMelds, type Placed } from './board';
+import { BOARD_COLS, cellKey, findSpot, segments, layoutMelds, type Placed } from './board';
 import { evalMeld, type Rules } from './melds';
 import type { GameState } from './game';
 
@@ -246,4 +246,73 @@ export function rackMelds(state: GameState, seat: number, budget = 60000): { mel
   }
   const used = new Set(melds.flat());
   return { melds, rest: rack.filter((id) => !used.has(id)) };
+}
+
+/** One step of a hint: move tile `id` (from the rack or the table) to cell (r, c). */
+export interface Step { id: number; r: number; c: number }
+
+/** The hint (2026-10-02, Stefanie: the hint "should never make the move … just the next step … and it has to
+ *  re-evaluate based on its own given moves on the board"): a good move planned from the table as the player has it
+ *  now — their own moves kept — and only its next step. Null when there is nothing to add (draw, or press Done). */
+export function hintStep(state: GameState, seat: number, draft: Placed[], budget = 80000): Step | null {
+  const { tiles, rules } = state;
+  const me = state.players[seat];
+  const onTable = new Set(draft.map((p) => p.id));
+  const start = new Set(state.board.map((p) => p.id));
+  const withRack = (rack: number[]): GameState => ({ ...state, players: state.players.map((p, i) => (i === seat ? { ...p, rack } : p)) });
+  let melds: number[][] | null = null;
+  if (me.opened) {
+    // everything on the table now stays on it; the plan adds from what is left on the rack
+    const plan = chooseMove({ ...withRack(me.rack.filter((id) => id >= 0 && !onTable.has(id))), board: draft }, seat, 3, budget);
+    if (plan) melds = segments(plan.board).map((g) => g.ids);
+  } else {
+    // the opening: the melds already finished are kept; the rest of the 30 points is planned from the rack
+    // (tiles laid in an unfinished meld count as rack tiles again)
+    const kept = segments(draft).filter((g) => g.ids.every((id) => !start.has(id)) && evalMeld(g.ids.map((id) => tiles[id]), rules).ok);
+    const keptIds = new Set(kept.flatMap((g) => g.ids));
+    const value = kept.reduce((v, g) => v + evalMeld(g.ids.map((id) => tiles[id]), rules).value, 0);
+    const need = rules.openingMin - value;
+    const loose = draft.some((p) => !start.has(p.id) && !keptIds.has(p.id));
+    if (need <= 0 && !loose) return null;
+    const rack = me.rack.filter((id) => id >= 0 && !keptIds.has(id));
+    const plan = chooseMove({ ...withRack(rack), rules: { ...rules, openingMin: Math.max(1, need) } }, seat, 3, budget)
+      ?? chooseMove(state, seat, 3, budget);
+    if (plan) melds = [...kept.map((g) => g.ids), ...segments(plan.board).map((g) => g.ids).filter((m) => m.some((id) => !start.has(id)))];
+  }
+  return melds ? stepToward(melds, draft, tiles, rules) : null;
+}
+
+/** The first move that brings the table closer to `melds`: finish what is started first. */
+export function stepToward(melds: number[][], draft: Placed[], tiles: Tile[], rules: Pick<Rules, 'rollover'>): Step | null {
+  const segs = segments(draft);
+  const segOf = new Map<number, number>();
+  segs.forEach((g, i) => g.ids.forEach((id) => segOf.set(id, i)));
+  const occupied = new Set(draft.map((p) => cellKey(p.r, p.c)));
+  const ranked = melds.map((m) => {
+    const tally = new Map<number, number>();
+    for (const id of m) { const i = segOf.get(id); if (i !== undefined) tally.set(i, (tally.get(i) ?? 0) + 1); }
+    let best = -1, overlap = 0;
+    for (const [i, n] of tally) if (n > overlap) { best = i; overlap = n; }
+    return { m, best, overlap };
+  }).filter((x) => !(x.overlap === x.m.length && segs[x.best].ids.length === x.m.length))
+    .sort((a, b) => b.overlap - a.overlap);
+  for (const { m, best, overlap } of ranked) {
+    const e = evalMeld(m.map((id) => tiles[id]), rules);
+    const order = e.ok ? e.order.map((t) => t.id) : m;
+    if (overlap === 0) {
+      const spot = findSpot(occupied, m.length);
+      if (spot) return { id: order[0], r: spot.r, c: spot.c };
+      continue;
+    }
+    const D = segs[best];
+    const inD = new Set(D.ids);
+    const lo = Math.min(...order.map((id, i) => (inD.has(id) ? i : Infinity)));
+    for (const id of order) {
+      if (inD.has(id)) continue;
+      const c = order.indexOf(id) < lo ? D.c - 1 : D.c + D.ids.length;
+      if (c < 0 || c >= BOARD_COLS || occupied.has(cellKey(D.r, c))) continue;
+      return { id, r: D.r, c };
+    }
+  }
+  return null;
 }

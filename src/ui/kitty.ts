@@ -46,7 +46,7 @@ export const KITTEN_FACE = `<svg class="kface" viewBox="20 2 80 74" aria-hidden=
 // Minka in 3D is the mascot (2026-10-02); ?kitty=classic shows the drawn kitten, which also stays when 3D cannot load
 const CLASSIC = new URLSearchParams(location.search).get('kitty') === 'classic';
 type Cat = { setAwake(a: boolean): void; happy(): void; rollover(): void; party(): void; pet(): void;
-  walk(dir: -1 | 1): void; settle(): void; angry(): void; speedPx(dir: -1 | 1): number };
+  walk(dir: -1 | 1): void; settle(): void; angry(): void; onStep: ((dx: number) => void) | null };
 
 export class Kitty {
   el: HTMLElement;
@@ -132,26 +132,38 @@ export class Kitty {
     this.el.classList.add('walking');
     const w = this.el.offsetWidth, h = this.el.offsetHeight;
     const foot = (p: [number, number]) => { this.el.style.left = `${p[0] - w / 2}px`; this.el.style.top = `${p[1] - h * 0.92}px`; };
+    // she moves only as her paws push: each frame, the paw on the ground stays where it is on screen and she moves
+    // the other way by exactly as much (minkacat.ts onStep) — no sliding
     return new Promise((done) => {
-      let seg = 0, t0 = performance.now(), facing = 0;
-      const step = (now: number) => {
-        const a = path[seg], b = path[seg + 1];
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-        const dir = b[0] < a[0] ? -1 : 1;
-        if (dir !== facing) { facing = dir; cat.walk(dir); }
-        // her paws' own pace, read from her walk (minkacat.ts), so they do not slide over the rack
-        const speed = cat.speedPx(dir);
-        const k = Math.min(1, ((now - t0) / 1000) * speed / len);
-        foot([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]);
-        if (k >= 1) { seg++; t0 = now; }
-        if (seg < path.length - 1) { requestAnimationFrame(step); return; }
+      let seg = 0, x = path[0][0], y = path[0][1];
+      const started = performance.now();
+      const finish = () => {
+        cat.onStep = null;
         this.strolling = false;
         this.el.classList.remove('walking');
         this.place(this.at[0], this.at[1]);
         cat.settle();
         done();
       };
-      requestAnimationFrame(step);
+      const head = () => {
+        const b = path[seg + 1];
+        cat.walk(b[0] < x ? -1 : 1);
+      };
+      head();
+      foot([x, y]);
+      cat.onStep = (dx) => {
+        const b = path[seg + 1], dir = b[0] < path[seg][0] ? -1 : 1;
+        if (dx * dir > 0) dx = 0;               // a paw lifting, not pushing: she never moves backward
+        x -= dx;
+        y = path[seg][1] + (b[1] - path[seg][1]) * Math.min(1, Math.abs(x - path[seg][0]) / (Math.abs(b[0] - path[seg][0]) || 1));
+        if ((dir < 0 && x <= b[0]) || (dir > 0 && x >= b[0])) {
+          x = b[0]; y = b[1]; seg++;
+          if (seg >= path.length - 1) { foot([x, y]); finish(); return; }
+          head();
+        }
+        foot([x, y]);
+        if (performance.now() - started > 60000) finish();          // never stuck out on the rack
+      };
     });
   }
 
