@@ -1,7 +1,7 @@
 // The game screen: felt table, wooden rack, and every tile as one element in a layer
 // above both — so a tile glides from the rack to the table instead of jumping.
 
-import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, findSpot, relayRow, segments, type Placed } from '../engine/board';
+import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, closeUp, findSpot, relayRow, segments, type Placed } from '../engine/board';
 import { legalSplit, meldAround, meldProblem } from '../engine/melds';
 import { chooseMove, rackMelds, type Move } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
@@ -949,15 +949,19 @@ export class GameView {
     const plan = this.planDrop(area, r, c, ids);
     if (!plan.ok) { if (plan.why) this.toast(plan.why, true); return false; }
     const moving = new Set(ids);
+    // a line that loses tiles closes up when the rest is legal only together (a group of four, minus one)
+    const s = this.s!;
+    const keep = s.players[this.seat].opened ? new Set<number>() : new Set(s.board.map((p) => p.id));
+    const tidy = (before: Placed[], after: Placed[]) => closeUp(before, after, moving, s.tiles, s.rules, keep);
     if (area === 'board') {
-      this.draft = this.boardAfter(r, plan.c, ids, plan.moves);
+      this.draft = tidy(this.draft!, this.boardAfter(r, plan.c, ids, plan.moves));
       for (const id of ids) this.rackPos.delete(id);
       this.sendDraft();
     } else {
       for (const [id, col] of plan.moves) this.rackPos.set(id, { r, c: col });
       ids.forEach((id, k) => this.rackPos.set(id, { r, c: plan.c + k }));
       if (this.draft && ids.some((id) => this.draft!.some((p) => p.id === id))) {
-        this.draft = this.draft.filter((p) => !moving.has(p.id));
+        this.draft = tidy(this.draft, this.draft.filter((p) => !moving.has(p.id)));
         this.sendDraft();
       }
       this.saveRack();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { evalMeld, belongsTogether, meldAround, legalSplit } from '../src/engine/melds';
 import type { Tile, Color } from '../src/engine/tiles';
-import { checkBoard, layoutMelds, relayRow, segments, type Placed } from '../src/engine/board';
+import { checkBoard, closeUp, layoutMelds, relayRow, segments, type Placed } from '../src/engine/board';
 import { newGame, commitTurn, drawTile, validateCommit, type GameState } from '../src/engine/game';
 import { chooseMove } from '../src/engine/ai';
 
@@ -213,5 +213,31 @@ describe('splitting a row on the table (2026-10-02)', () => {
   it('gives up when the row would run off the table', () => {
     const row: Placed[] = [1, 2, 3, 4].map((id, k) => ({ id, r: 0, c: 22 + k }));
     expect(relayRow(row, new Set([3]), 26)).toBeNull();
+  });
+});
+
+describe('taking a tile out of a line (2026-10-02)', () => {
+  const tiles: Tile[] = [];
+  const put = (t: Tile) => { tiles[t.id] = t; return t.id; };
+  it('closes a group of four up when one tile is taken from the middle', () => {
+    const ids = [put(T(0, 10)), put(T(1, 10)), put(T(2, 10)), put(T(3, 10))];
+    const before: Placed[] = ids.map((id, k) => ({ id, r: 1, c: 4 + k }));
+    const after = before.filter((p) => p.id !== ids[1]);
+    const out = closeUp(before, after, new Set([ids[1]]), tiles, ROLL);
+    expect(segments(out).map((g) => g.ids)).toEqual([[ids[0], ids[2], ids[3]]]);
+    expect(out.find((p) => p.id === ids[0])!.c).toBe(4);
+  });
+  it('leaves a run that was split on purpose split', () => {
+    const ids = [3, 4, 5, 6, 7, 8, 9].map((n) => put(T(1, n)));
+    const before: Placed[] = ids.map((id, k) => ({ id, r: 2, c: k }));
+    const taken = ids[3];
+    const out = closeUp(before, before.filter((p) => p.id !== taken), new Set([taken]), tiles, ROLL);
+    expect(segments(out).length).toBe(2);
+  });
+  it('does not move the table you found before your opening', () => {
+    const ids = [put(T(0, 7)), put(T(1, 7)), put(T(2, 7)), put(T(3, 7))];
+    const before: Placed[] = ids.map((id, k) => ({ id, r: 0, c: k }));
+    const out = closeUp(before, before.filter((p) => p.id !== ids[1]), new Set([ids[1]]), tiles, ROLL, new Set(ids));
+    expect(out.find((p) => p.id === ids[2])!.c).toBe(2);
   });
 });

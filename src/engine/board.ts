@@ -147,3 +147,28 @@ export function relayRow(row: Placed[], cutBefore: Set<number>, cols = BOARD_COL
   }
   return col;
 }
+
+/** After `taken` tiles left a line on the table (`before` → `after`), the rest closes up when it is a legal meld
+ *  only together — take one tile from a group of four and the three stay one group (2026-10-02). A line whose parts
+ *  are each legal (a run split on purpose) is left as it is; nothing moves onto an occupied cell, nor any tile in
+ *  `keep` (before your opening, the table as it was). */
+export function closeUp(before: Placed[], after: Placed[], taken: Set<number>, tiles: Tile[], rules: Pick<Rules, 'rollover'>,
+  keep = new Set<number>()): Placed[] {
+  const now = new Map(after.map((p) => [p.id, { ...p }]));
+  for (const seg of segments(before)) {
+    if (!seg.ids.some((id) => taken.has(id))) continue;
+    const rest = seg.ids.filter((id) => !taken.has(id) && now.has(id));
+    if (rest.length < 3 || rest.some((id) => now.get(id)!.r !== seg.r)) continue;
+    const parts = segments(rest.map((id) => now.get(id)!));
+    if (parts.length < 2) continue;
+    if (parts.every((p) => evalMeld(p.ids.map((id) => tiles[id]), rules).ok)) continue;
+    const order = parts.flatMap((p) => p.ids);
+    if (!evalMeld(order.map((id) => tiles[id]), rules).ok) continue;
+    const start = now.get(order[0])!.c;
+    const others = new Set([...now.values()].filter((p) => !order.includes(p.id)).map((p) => cellKey(p.r, p.c)));
+    if (order.some((_, k) => others.has(cellKey(seg.r, start + k)))) continue;
+    if (order.some((id, k) => keep.has(id) && now.get(id)!.c !== start + k)) continue;
+    order.forEach((id, k) => { now.get(id)!.c = start + k; });
+  }
+  return after.map((p) => now.get(p.id)!);
+}
