@@ -274,15 +274,15 @@ describe('the hint: one next step, from the table as it is (2026-10-02)', () => 
     expect(step.id).toBe(0);
   });
   it('never parks a tile on a meld that merely holds one of its partners', () => {
-    // red 7-8-9 and orange 8-9-10 on the table; the plan: a group of 9s (red, orange, blue from the rack) — the first
-    // step lays the rack's blue 9 in a free spot, it does not put anything next to the red run
-    const t = [T(0, 7), T(0, 8), T(0, 9), T(2, 8), T(2, 9), T(2, 10), T(1, 9)];
+    // red 6-7-8-9 and orange 9-10-11-12 on the table; the plan: a group of 9s (red, orange, blue from the rack) — the
+    // first step goes to a free spot apart from both runs, never next to the red or the orange run
+    const t = [T(0, 6), T(0, 7), T(0, 8), T(0, 9), T(2, 9), T(2, 10), T(2, 11), T(2, 12), T(1, 9)];
     t.forEach((x, i) => (x.id = i));
-    const draft: Placed[] = [0, 1, 2].map((id, k) => ({ id, r: 0, c: k })).concat([3, 4, 5].map((id, k) => ({ id, r: 0, c: 5 + k })));
-    const step = stepToward([[2, 4, 6]], draft, t, ROLL)!;
-    expect(step.id).toBe(6);
-    // a free spot apart from both runs (cells 3 and 8 are the runs' ends; 4 would touch the orange run too)
-    expect(step.r === 0 && step.c <= 8).toBe(false);
+    const draft: Placed[] = [0, 1, 2, 3].map((id, k) => ({ id, r: 0, c: k })).concat([4, 5, 6, 7].map((id, k) => ({ id, r: 0, c: 5 + k })));
+    const step = stepToward([[0, 1, 2], [5, 6, 7], [3, 4, 8]], draft, t, ROLL)!;
+    expect([3, 4, 8]).toContain(step.id);
+    // a free spot apart from both runs (cells 4 and 9 are the runs' ends)
+    expect(step.r === 0 && step.c <= 9).toBe(false);
   });
   it('lays a meld straight from the rack before rearranging the table', () => {
     const t = [T(1, 4), T(3, 4), T(2, 4), T(0, 7), T(0, 8), T(0, 9), T(0, 10)];

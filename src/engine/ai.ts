@@ -6,6 +6,7 @@
 
 import { typeOf, typeColor, typeNum, type Tile } from './tiles';
 import { BOARD_COLS, cellKey, findSpot, segments, layoutMelds, type Placed } from './board';
+import { dropOnBoard, takeBack, type DropContext } from './drop';
 import { evalMeld, type Rules } from './melds';
 import type { GameState } from './game';
 
@@ -248,96 +249,228 @@ export function rackMelds(state: GameState, seat: number, budget = 60000): { mel
   return { melds, rest: rack.filter((id) => !used.has(id)) };
 }
 
-/** One step of a hint: move tile `id` (from the rack or the table) to cell (r, c). */
-export interface Step { id: number; r: number; c: number }
+/** One step of a hint: move tile `id` (from the rack or the table) to cell (r, c) — or, with `toRack`, take it back. */
+export interface Step { id: number; r: number; c: number; toRack?: boolean }
 
 /** The hint (2026-10-02, Stefanie: the hint "should never make the move … just the next step … and it has to
- *  re-evaluate based on its own given moves on the board"): a good move planned from the table as the player has it
- *  now — their own moves kept — and only its next step. Null when there is nothing to add (draw, or press Done). */
-export function hintStep(state: GameState, seat: number, draft: Placed[], budget = 80000): Step | null {
+ *  re-evaluate based on its own given moves on the board"; then "the hint I was given did not work"). A good move is
+ *  planned from the table as the player has it now, their own moves kept; then every possible next step is tried with
+ *  the game's own drop rules (engine/drop.ts) and the one bringing the table closest to the plan is shown. Null when
+ *  there is nothing left to do (draw, or press Done). */
+export function hintStep(state: GameState, seat: number, draft: Placed[], budget = 80000, earlier?: number[][] | null): Step | null {
+  return hintWithPlan(state, seat, draft, budget, earlier).step;
+}
+
+/** The hint and the plan it follows (pass the plan back next time: it is kept while it still fits). */
+export function hintWithPlan(state: GameState, seat: number, draft: Placed[], budget = 80000, earlier?: number[][] | null): { step: Step | null; plan: number[][] | null } {
+  const me = state.players[seat];
+  const onTable = new Set(draft.map((p) => p.id));
+  const rackLeft = me.rack.filter((id) => id >= 0 && !onTable.has(id));
+  const raw = earlier && planFits(earlier, draft, rackLeft) ? earlier : hintPlan(state, seat, draft, budget);
+  if (!raw) return { step: null, plan: null };
+  const plan = matchTwins(raw, draft, state.tiles);
+  return { plan, step: bestStep(plan, draft, {
+    tiles: state.tiles, rules: state.rules, opened: me.opened, tableAtStart: new Set(state.board.map((p) => p.id)),
+  }, new Set(me.rack)) };
+}
+
+/** Legal melds that use every tile in `must` and as many of `may` as is best, or null. */
+function solveAll(must: number[], may: number[], tiles: Tile[], rules: Rules, budget: number): number[][] | null {
+  try {
+    const all = counts([...must, ...may], tiles), mand = counts(must, tiles);
+    const res = new Solver(rules.rollover, budget).solve(all.avail, mand.avail, all.jokers, mand.jokers);
+    if (res.score === -Infinity) return null;
+    const melds = materialize(res.melds, must, may, tiles, rules);
+    const used = new Set(melds.flat());
+    if (!must.every((id) => used.has(id)) || !melds.every((m) => evalMeld(m.map((id) => tiles[id]), rules).ok)) return null;
+    return melds;
+  } catch (e) {
+    if (!(e instanceof OutOfBudget)) throw e;
+    return null;
+  }
+}
+
+/** Does an earlier hint's plan still fit: every tile on the table is in it, and every tile it needs is on the table
+ *  or still on the rack? Then the hint keeps it, so the steps do not wander between equally good plans. */
+export function planFits(plan: number[][], draft: Placed[], rack: number[]): boolean {
+  const inPlan = new Set(plan.flat());
+  const there = new Set([...draft.map((p) => p.id), ...rack]);
+  return draft.every((p) => inPlan.has(p.id)) && [...inPlan].every((id) => there.has(id));
+}
+
+/** Every tile exists twice (and the jokers are alike): the planner may give a tile in a finished meld on the table
+ *  to another meld than its identical twin, and the steps would then swap identical tiles back and forth. Twins are
+ *  exchanged in the plan wherever that keeps more tiles in the line they are already in. */
+export function matchTwins(plan: number[][], draft: Placed[], tiles: Tile[]): number[][] {
+  const out = plan.map((m) => m.slice());
+  const where = new Map<number, [number, number]>();
+  out.forEach((m, i) => m.forEach((id, k) => where.set(id, [i, k])));
+  const segs = segments(draft);
+  const lineOf = new Map<number, number>();
+  segs.forEach((g, i) => g.ids.forEach((id) => lineOf.set(id, i)));
+  const meldOf = (id: number) => where.get(id)?.[0];
+  // how many line neighbors of `id` share its planned meld
+  const fit = (id: number) => {
+    const l = lineOf.get(id);
+    if (l === undefined) return 0;
+    const ids = segs[l].ids, k = ids.indexOf(id), m = meldOf(id);
+    return (k > 0 && meldOf(ids[k - 1]) === m ? 1 : 0) + (k + 1 < ids.length && meldOf(ids[k + 1]) === m ? 1 : 0);
+  };
+  const kind = (id: number) => (tiles[id].joker ? 'J' : `${tiles[id].color}:${tiles[id].num}`);
+  const byKind = new Map<string, number[]>();
+  for (const id of where.keys()) { const k = kind(id); byKind.set(k, [...(byKind.get(k) ?? []), id]); }
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    for (const ids of byKind.values()) {
+      for (let a = 0; a < ids.length; a++) for (let b = a + 1; b < ids.length; b++) {
+        const x = ids[a], y = ids[b];
+        const before = fit(x) + fit(y);
+        const [xi, xk] = where.get(x)!, [yi, yk] = where.get(y)!;
+        out[xi][xk] = y; out[yi][yk] = x; where.set(x, [yi, yk]); where.set(y, [xi, xk]);
+        if (fit(x) + fit(y) > before) { changed = true; continue; }
+        out[xi][xk] = x; out[yi][yk] = y; where.set(x, [xi, xk]); where.set(y, [yi, yk]);
+      }
+    }
+    if (!changed) break;
+  }
+  return out;
+}
+
+/** The table the hint works toward, as melds (lists of tile ids). */
+export function hintPlan(state: GameState, seat: number, draft: Placed[], budget = 80000): number[][] | null {
   const { tiles, rules } = state;
   const me = state.players[seat];
   const onTable = new Set(draft.map((p) => p.id));
   const start = new Set(state.board.map((p) => p.id));
-  const withRack = (rack: number[]): GameState => ({ ...state, players: state.players.map((p, i) => (i === seat ? { ...p, rack } : p)) });
-  let melds: number[][] | null = null;
+  const rackLeft = me.rack.filter((id) => id >= 0 && !onTable.has(id));
+  const value = (m: number[]) => evalMeld(m.map((id) => tiles[id]), rules).value;
   if (me.opened) {
-    // everything on the table now stays on it; the plan adds from what is left on the rack
-    const plan = chooseMove({ ...withRack(me.rack.filter((id) => id >= 0 && !onTable.has(id))), board: draft }, seat, 3, budget);
-    if (plan) melds = segments(plan.board).map((g) => g.ids);
-  } else {
-    // the opening: the melds already finished are kept; the rest of the 30 points is planned from the rack
-    // (tiles laid in an unfinished meld count as rack tiles again)
-    const kept = segments(draft).filter((g) => g.ids.every((id) => !start.has(id)) && evalMeld(g.ids.map((id) => tiles[id]), rules).ok);
-    const keptIds = new Set(kept.flatMap((g) => g.ids));
-    const value = kept.reduce((v, g) => v + evalMeld(g.ids.map((id) => tiles[id]), rules).value, 0);
-    const need = rules.openingMin - value;
-    const loose = draft.some((p) => !start.has(p.id) && !keptIds.has(p.id));
-    if (need <= 0 && !loose) return null;
-    const rack = me.rack.filter((id) => id >= 0 && !keptIds.has(id));
-    const plan = chooseMove({ ...withRack(rack), rules: { ...rules, openingMin: Math.max(1, need) } }, seat, 3, budget)
-      ?? chooseMove(state, seat, 3, budget);
-    if (plan) melds = [...kept.map((g) => g.ids), ...segments(plan.board).map((g) => g.ids).filter((m) => m.some((id) => !start.has(id)))];
+    // a move a person would make first: melds from the rack and single tiles added to melds on the table, nothing
+    // rearranged — when the table is in order and such a move exists (a full rebuild can take dozens of steps)
+    const lines = segments(draft).map((g) => g.ids);
+    if (lines.every((m) => evalMeld(m.map((id) => tiles[id]), rules).ok)) {
+      const simple = chooseMove({ ...state, board: draft, players: state.players.map((p, i) => (i === seat ? { ...p, rack: rackLeft } : p)) }, seat, 2, budget);
+      if (simple && segments(simple.board).every((g) => evalMeld(g.ids.map((id) => tiles[id]), rules).ok)) return segments(simple.board).map((g) => g.ids);
+    }
+    // otherwise everything on the table now stays on it, every line ends up legal, and the best is added from the rack
+    return solveAll(draft.map((p) => p.id), rackLeft, tiles, rules, budget);
   }
-  return melds ? stepToward(melds, draft, tiles, rules) : null;
+  // the opening: the table you found stays as it is; your laid tiles are kept when they can be part of 30 points
+  const startMelds = segments(state.board).map((g) => g.ids);
+  const placed = draft.filter((p) => !start.has(p.id)).map((p) => p.id);
+  if (placed.length) {
+    const kept = solveAll(placed, rackLeft, tiles, rules, budget);
+    if (kept && kept.reduce((v, m) => v + value(m), 0) >= rules.openingMin) return [...startMelds, ...kept];
+  }
+  const fresh = solveAll([], me.rack.filter((id) => id >= 0), tiles, rules, budget);
+  if (!fresh || !fresh.length || fresh.reduce((v, m) => v + value(m), 0) < rules.openingMin) return null;
+  return [...startMelds, ...fresh];
 }
 
-/** The next step toward `melds` (the planned table) from `draft` (the table now), in the order a person would play:
- *  a rack tile onto a meld already started, then a new meld straight from the rack, then rearranging the table.
- *  A tile only goes next to a line made entirely of its planned meld's tiles — never onto another meld that merely
- *  holds one of them (2026-10-02: the orange 9 parked after red 6-10 "does not seem possible"). A tile is only
- *  taken off the table when what stays behind is still legal, and pieces that appear by themselves once a tile is
- *  lifted out (6-7-8 and 10-11-12 of 6-…-12) are not steps. */
-export function stepToward(melds: number[][], draft: Placed[], tiles: Tile[], rules: Pick<Rules, 'rollover'>): Step | null {
+/** The next step from `draft` toward `plan`, the way a person tidies a table (2026-10-02). Every planned meld has a
+ *  home: the line on the table holding most of its tiles (or, for a meld with none there yet, a free spot set
+ *  aside). A tile in a line that is not its meld's home is out of place. The steps, in order: your own tile the plan
+ *  does not use goes back to the rack; a rack tile joins its meld's home when that line holds nothing out of place;
+ *  a new meld is laid straight from the rack; a tile out of place moves to its meld's home; the rest. Each step is
+ *  tried with the game's own drop rules and only kept when the tile lands where it should — never merging into a
+ *  neighboring meld. */
+export function bestStep(plan: number[][], draft: Placed[], o: DropContext, mine: Set<number>): Step | null {
+  const planOf = new Map<number, number>();
+  plan.forEach((m, i) => m.forEach((id) => planOf.set(id, i)));
   const segs = segments(draft);
-  const segOf = new Map<number, number>();
-  segs.forEach((g, i) => g.ids.forEach((id) => segOf.set(id, i)));
-  const occupied = new Set(draft.map((p) => cellKey(p.r, p.c)));
-  const legal = (ids: number[]) => ids.length === 0 || evalMeld(ids.map((id) => tiles[id]), rules).ok;
-  // can tile `id` leave its line on the table? (the parts left on either side must each be legal)
-  const canLeave = (id: number) => {
-    const i = segOf.get(id);
-    if (i === undefined) return true;                       // a rack tile
-    const ids = segs[i].ids, k = ids.indexOf(id);
-    return legal(ids.slice(0, k)) && legal(ids.slice(k + 1));
+  const lineOf = new Map<number, number>();
+  segs.forEach((g, i) => g.ids.forEach((id) => lineOf.set(id, i)));
+  // each line's own meld (the planned meld with most tiles in it), then each meld's home line
+  const home = new Map<number, number>();                 // meld → line
+  const best = new Map<number, number>();                 // meld → its tiles in the home line
+  const taken = new Set(draft.map((p) => cellKey(p.r, p.c)));
+  // a line boxed in (another meld one empty cell away on both sides) cannot grow without merging: no home
+  const boxed = (g: { r: number; c: number; ids: number[] }) => {
+    const right = g.c + g.ids.length < BOARD_COLS && !taken.has(cellKey(g.r, g.c + g.ids.length + 1));
+    const left = g.c - 1 >= 0 && !taken.has(cellKey(g.r, g.c - 2));
+    return !right && !left;
   };
-  type Cand = Step & { rank: number; size: number };
-  const cands: Cand[] = [];
-  for (const m of melds) {
-    const inM = new Set(m);
-    // already on the table as it should be, or a piece that will appear by itself inside a longer line
-    const home = segs.find((g) => m.every((id) => g.ids.includes(id)));
-    if (home) {
-      const k = home.ids.indexOf(m[0]);
-      const run = home.ids.slice(Math.min(...m.map((id) => home.ids.indexOf(id))), Math.max(...m.map((id) => home.ids.indexOf(id))) + 1);
-      if (run.length === m.length && k >= 0) continue;
-    }
-    const e = evalMeld(m.map((id) => tiles[id]), rules);
-    const order = e.ok ? e.order.map((t) => t.id) : m;
-    // a started part of this meld: a line made only of its tiles
-    const started = segs.filter((g) => g.ids.every((id) => inM.has(id))).sort((a, b) => b.ids.length - a.ids.length)[0];
-    if (started) {
-      const inD = new Set(started.ids);
-      const lo = Math.min(...order.map((id, i) => (inD.has(id) ? i : Infinity)));
-      for (const id of order) {
-        if (inD.has(id) || !canLeave(id)) continue;
-        const c = order.indexOf(id) < lo ? started.c - 1 : started.c + started.ids.length;
-        if (c < 0 || c >= BOARD_COLS || occupied.has(cellKey(started.r, c))) continue;
-        cands.push({ id, r: started.r, c, rank: segOf.has(id) ? 2 : 0, size: started.ids.length });
-        break;
-      }
-      continue;
-    }
-    // a new meld, in a free spot: a rack tile first, else a table tile that can leave its line
+  segs.forEach((g, i) => {
+    const tally = new Map<number, number>();
+    for (const id of g.ids) { const m = planOf.get(id); if (m !== undefined) tally.set(m, (tally.get(m) ?? 0) + 1); }
+    let own = -1, n = 0;
+    for (const [m, k] of tally) if (k > n || (k === n && plan[m].length > plan[own].length)) { own = m; n = k; }
+    // a boxed line is still home when the whole meld is already in it: it only has to lose tiles, never grow
+    const whole = own >= 0 && n === plan[own].length;
+    if (own >= 0 && (whole || !boxed(g)) && n > (best.get(own) ?? 0)) { home.set(own, i); best.set(own, n); }
+  });
+  const outOfPlace = (id: number) => {
+    const line = lineOf.get(id);
+    if (line === undefined) return false;
+    const m = planOf.get(id);
+    return m === undefined || home.get(m) !== line;
+  };
+  const clean = (line: number) => segs[line].ids.every((id) => !outOfPlace(id));
+  // free spots set aside for melds with no home yet
+  const occupied = new Set(draft.map((p) => cellKey(p.r, p.c)));
+  const reserved = new Map<number, { r: number; c: number }>();
+  plan.forEach((m, i) => {
+    if (home.has(i) || m.every((id) => o.tableAtStart.has(id) && !o.opened)) return;
     const spot = findSpot(occupied, m.length);
-    if (!spot) continue;
-    const fromRack = order.find((id) => !segOf.has(id));
-    const first = fromRack ?? order.find((id) => canLeave(id));
-    if (first === undefined) continue;
-    const allRack = order.every((id) => !segOf.has(id));
-    cands.push({ id: first, r: spot.r, c: spot.c, rank: allRack ? 1 : 3, size: 0 });
+    if (!spot) return;
+    reserved.set(i, spot);
+    for (let k = -1; k <= m.length; k++) occupied.add(cellKey(spot.r, spot.c + k));
+  });
+  const pos = new Map(draft.map((p) => [p.id, p]));
+  // where tile `id` should go: the ends of its meld's home line, or its meld's reserved spot
+  const targets = (id: number): [number, number][] => {
+    const m = planOf.get(id)!;
+    const h = home.get(m);
+    if (h !== undefined) { const g = segs[h]; return [[g.r, g.c + g.ids.length], [g.r, g.c - 1]]; }
+    const sp = reserved.get(m);
+    return sp ? [[sp.r, sp.c]] : [];
+  };
+  // try a move with the game's drop rules: keep it only when the tile lands in its own meld's line, nothing else
+  const tryMove = (id: number): Step | null => {
+    const m = planOf.get(id)!;
+    for (const [r, c] of targets(id)) {
+      if (c < 0 || c >= BOARD_COLS) continue;
+      const after = dropOnBoard(draft, [id], r, c, o);
+      if (!after) continue;
+      const line = segments(after).find((g) => g.ids.includes(id))!;
+      const h = home.get(m);
+      const expect = new Set([...(h !== undefined ? segs[h].ids.filter((x) => !outOfPlace(x) || x === id) : []), id]);
+      if (line.ids.every((x) => planOf.get(x) === m) && line.ids.length >= expect.size - (h !== undefined ? segs[h].ids.filter(outOfPlace).length : 0)) {
+        const landed = after.find((p) => p.id === id)!;
+        return { id, r: landed.r, c: landed.c };
+      }
+    }
+    return null;
+  };
+  // 0. your own tiles the plan does not use go back
+  for (const p of draft) if (!planOf.has(p.id) && mine.has(p.id) && !o.tableAtStart.has(p.id)) return { id: p.id, r: p.r, c: p.c, toRack: true };
+  const rackTiles = plan.flat().filter((id) => !pos.has(id) && mine.has(id));
+  // 1. a rack tile onto its meld's clean home line (the meld with most tiles there first)
+  for (const id of [...rackTiles].sort((a, b) => (best.get(planOf.get(b)!) ?? 0) - (best.get(planOf.get(a)!) ?? 0))) {
+    const h = home.get(planOf.get(id)!);
+    if (h === undefined || !clean(h)) continue;
+    const st = tryMove(id);
+    if (st) return st;
   }
-  cands.sort((a, b) => a.rank - b.rank || b.size - a.size);
-  const best = cands[0];
-  return best ? { id: best.id, r: best.r, c: best.c } : null;
+  // 2. a new meld straight from the rack
+  for (const [i, m] of plan.entries()) {
+    if (home.has(i) || !m.every((id) => rackTiles.includes(id))) continue;
+    const st = tryMove(m[0]);
+    if (st) return st;
+  }
+  // 3. a tile out of place moves to its meld's home (or its reserved spot)
+  for (const p of draft) {
+    if (!outOfPlace(p.id) || !planOf.has(p.id) || (!o.opened && o.tableAtStart.has(p.id))) continue;
+    const st = tryMove(p.id);
+    if (st) return st;
+  }
+  // 4. the rest of the rack
+  for (const id of rackTiles) { const st = tryMove(id); if (st) return st; }
+  return null;
+}
+
+/** The first move that brings the table closer to `melds` (kept for the tests of the older rule set). */
+export function stepToward(melds: number[][], draft: Placed[], tiles: Tile[], rules: Pick<Rules, 'rollover'>): Step | null {
+  const mine = new Set(melds.flat().filter((id) => !draft.some((p) => p.id === id)));
+  return bestStep(melds, draft, { tiles, rules, opened: true, tableAtStart: new Set() }, mine);
 }

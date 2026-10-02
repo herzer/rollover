@@ -1,9 +1,10 @@
 // The game screen: felt table, wooden rack, and every tile as one element in a layer
 // above both — so a tile glides from the rack to the table instead of jumping.
 
-import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, closeUp, findSpot, relayRow, segments, type Placed } from '../engine/board';
-import { legalSplit, meldAround, meldProblem } from '../engine/melds';
-import { chooseMove, hintStep, rackMelds, type Step } from '../engine/ai';
+import { BOARD_COLS, BOARD_ROWS, checkBoard, cellKey, closeUp, findSpot, segments, type Placed } from '../engine/board';
+import { boardAfterDrop, planBoardDrop, type DropContext } from '../engine/drop';
+import { meldAround, meldProblem } from '../engine/melds';
+import { chooseMove, hintWithPlan, rackMelds, type Step } from '../engine/ai';
 import type { GameState, LogEntry } from '../engine/game';
 import type { Tile } from '../engine/tiles';
 import type { Client, ClientEvent } from '../net/client';
@@ -90,6 +91,7 @@ export class GameView {
   private rackPos = new Map<number, { r: number; c: number }>();
   private selected = new Set<number>();
   private hint: Step | null = null;
+  private hintPlan: number[][] | null = null;      // the plan the hint follows this turn, kept while it fits
   private drag: Drag | null = null;
   private lastClick = { id: -1, at: 0 };
   private tw = 44; private th = 58; private gap = 4;
@@ -388,8 +390,8 @@ export class GameView {
     if (key !== this.turnKey) { this.turnKey = key; this.turnSince = Date.now(); }
     const mineInState = s.phase === 'playing' && s.turn === this.seat;
     if (mineInState) {
-      if (this.draftKey !== key || !this.draft) { this.draft = this.savedDraft(s, key) ?? s.board.map((p) => ({ ...p })); this.hint = null; this.validKeys.clear(); }
-    } else { this.draft = null; this.hint = null; }
+      if (this.draftKey !== key || !this.draft) { this.draft = this.savedDraft(s, key) ?? s.board.map((p) => ({ ...p })); this.hint = null; this.hintPlan = null; this.validKeys.clear(); }
+    } else { this.draft = null; this.hint = null; this.hintPlan = null; }
     this.draftKey = key;
     if (s.seq !== this.sentSeq) this.sentSeq = -1;
 
@@ -485,8 +487,15 @@ export class GameView {
     }).join('');
     if (!this.drag?.active) {
       const spots = this.hint && mine ? (() => {
-        const xy = this.cellXY('board', this.hint!.r, this.hint!.c);
-        return `<div class="ghost hintspot" style="left:${xy.x - 2}px;top:${xy.y - 2}px;width:${this.tw + 4}px;height:${this.th + 4}px"></div>`;
+        // the dashed spot: on the table, or (a tile to take back) the first free place on your rack
+        let area: Area = 'board', r = this.hint!.r, c = this.hint!.c;
+        if (this.hint!.toRack) {
+          const used = new Set([...this.rackPos.values()].map((p) => cellKey(p.r, p.c)));
+          area = 'rack'; r = 0; c = 0;
+          outer: for (let rr = 0; rr < this.rackRows; rr++) for (let cc = 0; cc < this.rackCols; cc++) if (!used.has(cellKey(rr, cc))) { r = rr; c = cc; break outer; }
+        }
+        const z = this.size(area), xy = this.cellXY(area, r, c);
+        return `<div class="ghost hintspot" style="left:${xy.x - 2}px;top:${xy.y - 2}px;width:${z.w + 4}px;height:${z.h + 4}px"></div>`;
       })() : '';
       this.overlay.innerHTML = spots + okSegs.map((g) => {
         const xy = this.cellXY('rack', g.r, g.c);
@@ -655,9 +664,10 @@ export class GameView {
         break;
       case 'hint': {
         // one next step, planned from the table as you have it — nothing is moved for you (2026-10-02)
-        this.hint = hintStep(s, this.seat, this.draft ?? s.board);
+        const h = hintWithPlan(s, this.seat, this.draft ?? s.board, 80000, this.hintPlan);
+        this.hint = h.step; this.hintPlan = h.plan;
         const changed = (this.draft ?? []).length !== s.board.length;
-        if (this.hint) this.toast(t().hintStep, false, '', true);
+        if (this.hint) this.toast(this.hint.toRack ? t().hintToRack : t().hintStep, false, '', true);
         else this.toast(changed && checkBoard(this.draft!, s.tiles, s.rules).ok ? t().readyDone : t().hintNone);
         this.render();
         break;
@@ -906,21 +916,30 @@ export class GameView {
 
   /** Puts `ids` in a line starting at (r, c), nudging neighbors aside when needed. */
   /** Works out where `ids` would land at (r, c), nudging neighbors aside — without changing anything. */
+  private dropContext(): DropContext {
+    const s = this.s!;
+    return { tiles: s.tiles, rules: s.rules, opened: s.players[this.seat].opened, tableAtStart: new Set(s.board.map((p) => p.id)) };
+  }
+
+  /** Works out where `ids` would land at (r, c), nudging neighbors aside — without changing anything. The table's
+   *  rules live in the engine (engine/drop.ts), shared with the hint; the rack's are here. */
   private planDrop(area: Area, r: number, c: number, ids: number[]): { ok: true; c: number; moves: Map<number, number> } | { ok: false; why?: string } {
     const s = this.s!;
     const tableAtStart = new Set(s.board.map((p) => p.id));
-    if (area === 'board' && (!this.myTurn || !this.draft)) return { ok: false };
-    if (area === 'rack' && ids.some((id) => tableAtStart.has(id))) return { ok: false, why: t().errors['tiles-missing'] };
-    const cols = area === 'board' ? BOARD_COLS : this.rackCols;
+    if (area === 'board') {
+      if (!this.myTurn || !this.draft) return { ok: false };
+      const plan = planBoardDrop(this.draft, ids, r, c, this.dropContext());
+      return plan.ok ? plan : { ok: false, why: plan.why ? t().errors[plan.why] : undefined };
+    }
+    if (ids.some((id) => tableAtStart.has(id))) return { ok: false, why: t().errors['tiles-missing'] };
+    const cols = this.rackCols;
     const n = ids.length;
     if (n > cols) return { ok: false };
     c = Math.max(0, Math.min(c, cols - n));
     const moving = new Set(ids);
     const cells = new Map<number, number>(); // cellKey -> id, without the moving tiles
-    if (area === 'board') for (const p of this.draft!) { if (!moving.has(p.id)) cells.set(cellKey(p.r, p.c), p.id); }
-    else for (const [id, p] of this.rackPos) { if (!moving.has(id)) cells.set(cellKey(p.r, p.c), id); }
+    for (const [id, p] of this.rackPos) { if (!moving.has(id)) cells.set(cellKey(p.r, p.c), id); }
     const free = (cc: number) => !cells.has(cellKey(r, cc));
-
     // tiles in this row from c onward make room; melds that were apart stay apart
     const moves = new Map<number, number>();
     let ok = true;
@@ -942,36 +961,12 @@ export class GameView {
       }
     }
     if (!ok) return { ok: false };
-    // before your opening the table must stay exactly as it is, so its tiles are never pushed aside
-    const opened = s.players[this.seat].opened;
-    if (area === 'board' && !opened && [...moves.keys()].some((id) => tableAtStart.has(id))) {
-      return { ok: false, why: t().errors['opening-touched-table'] };
-    }
-    // dropped in between tiles where the line only becomes legal split in two (or three): split it (2026-10-02)
-    if (area === 'board') {
-      const after = this.boardAfter(r, c, ids, moves);
-      const seg = segments(after).find((x) => x.ids.includes(ids[0]));
-      const from = seg ? seg.ids.indexOf(ids[0]) : -1;
-      const cuts = seg ? legalSplit(seg.ids.map((id) => s.tiles[id]), from, from + n, s.rules) : null;
-      if (seg && cuts) {
-        const col = relayRow(after.filter((p) => p.r === r), new Set(cuts.map((k) => seg.ids[k])), cols);
-        const was = new Map(this.draft!.map((p) => [p.id, p.c]));
-        const split = new Map<number, number>();
-        if (col) for (const [id, nc] of col) if (!moving.has(id) && nc !== was.get(id)) split.set(id, nc);
-        if (col && (opened || ![...split.keys()].some((id) => tableAtStart.has(id)))) {
-          return { ok: true, c: col.get(ids[0])!, moves: split };
-        }
-      }
-    }
     return { ok: true, c, moves };
   }
 
   /** The table as it would be after the planned drop. */
   private boardAfter(r: number, c: number, ids: number[], moves: Map<number, number>): Placed[] {
-    const moving = new Set(ids);
-    const board = this.draft!.filter((p) => !moving.has(p.id)).map((p) => (moves.has(p.id) ? { ...p, c: moves.get(p.id)! } : p));
-    ids.forEach((id, k) => board.push({ id, r, c: c + k }));
-    return board;
+    return boardAfterDrop(this.draft!, r, c, ids, moves);
   }
 
   private drop(area: Area, r: number, c: number, ids: number[]): boolean {
