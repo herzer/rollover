@@ -61,6 +61,78 @@ declared control height token `--control-h`.
   The picker page is generated: `python3 scripts/build-tile-picker.py`.
 - Strict networks: if the direct link will not open, guests fall back to a public MQTT relay (`src/net/relay.ts`, HiveMQ then EMQX). Force it with `?relay` to test.
 
+## Minka in 3D (in progress, 2026-10-01 — not in the live game yet, nothing committed)
+Stefanie's original kitten from her film "Sam & Minka" (refs: `~/AI Reference Library/Sam & Minka/`; the
+film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game's 3D cat. Pipeline:
+- `scripts/minka/gen.py` (Gemini, the AI Movie Maker's key) → `scripts/minka/tripo.py` (Tripo international API,
+  key `~/.config/heartapps/tripo.key`, tasks resumable in `art/minka/3d/tasks.json`) → `tripo_retopo.py`
+  (smart retopology: 9,176 clean quads, rig, walk) → `scripts/blender/build_minka.py` (removes whisker stubs,
+  models new black whiskers along the old paths, eye texture) → `art/minka/3d/minka.glb` (+ `art/minka/blender/minka.blend`, neutral pose).
+- Eyes: Tripo's big round pupils are "the cutest" — keep them; `scripts/minka/enhance_eyes.py` adds iris fibers
+  in the film's gray-blue; `src/ui/eyes.ts` addCornea = glossy shell. A drawn iris (addEyes) was rejected.
+- Fur: `src/ui/fur.ts` shell fur; bare only on eyes, nose/pads, whiskers, inner-ear lining + guard hairs; ear
+  tips keep fur. Never strip fur elsewhere (she hates bald patches). Fur brush: `?lab=minka3d&furbrush` (dev).
+- Preview: `?lab=minka` (dev server; opens the current kept version, Version menu for the others, `&file=` for any model) — turn her around as she will render in the game.
+- Eyeballs (2026-10-01): `scripts/blender/add_eyeballs.py` (real sphere + glass cornea per eye, measured on the
+  high-poly model, rebuilds from `minka-before-eyeballs.blend`). Lids are Tripo's, untouched: automatic lid
+  shaping (tuck/push, rebuilt ring, smoothing) was tried and each made it worse — Tripo's eye corners are long
+  thin triangles. Lid fit needs hands-on modeling in Blender (or Medhe's base mesh). Both models are kept:
+  `minka-high.glb` (dense) and `minka.glb` (optimized).
+- Skeleton + walk (2026-10-01): Tripo's rig was broken (23 bones, a one-bone hind leg), so
+  `scripts/blender/build_rig.py` builds a proper 29-bone rig fitted to her legs' centerlines, auto-weights a
+  welded proxy and transfers the weights → `art/minka/3d/minka-rig.glb` (the preview's model). Tripo has only
+  one quadruped preset (the bad walk), so the walk is code: `src/ui/catwalk.ts` (cat footfall order, tuning
+  `KITTEN`). Eyes are symmetric about her head's true middle plane (`scripts/blender/head_symmetry.py`; her head
+  is turned 16.5° in Tripo's pose). Pink pads: `scripts/minka/pink_pads.py`. Iris: `gen_iris.py` + `iris_to_eyeball.py`.
+- **Current path — the Toon Cats Minka (2026-10-01).** She found the Tripo mesh "too much of a mess to work
+  with" and picked a cat from the `Toon Cats/` pack in this folder (license still unknown: there's no license
+  file, so confirm it allows a downloadable web game before anything goes live). `scripts/blender/build_toon_minka.py`
+  opens `Toon Cats/Export/StylizedCat.blend` (never modified) and writes `art/minka/toon/minka-toon.blend` (quads,
+  neutral pose) and `art/minka/3d/minka-toon.glb` (the preview's model). Steps: brown-tabby albedo from
+  `scripts/minka/toon_textures.py`; kitten proportions (head 1.30, eyes 1.12, legs 0.84, tail 0.82, moved with their
+  bones and the Blink shape key so all 19 clips still fit); her own eye texture
+  `art/minka/eye-textures/cat_eyeball_texture_lblue_wide_open.jpg` used unchanged, fitted by UVs (measured iris
+  from `scripts/minka/measure_iris.py`). No shell fur on the toon. Catchlights: `addToonCatchlights` in
+  `src/ui/eyes.ts` (found through the UVs; on the Head bone). The preview plays her clips (picker, Walk crossfades).
+  The Blink key exists but no clip drives it.
+- **Minka v2 = the current model (2026-10-01).** She judged the toon cat "not Minka at all" (side hair, cartoon look)
+  and asked for the toon's clean mesh reshaped exactly into Minka, with the toon's eye area kept. Pipeline:
+  `scripts/blender/neutral_minka.py` (her rig straightens the head and squares the paws → `art/minka/v2/minka-neutral.blend`)
+  → `scripts/blender/fit_minka_v2.py` (landmarks + thin-plate warp + projection onto her surface; the eye area moves
+  rigidly into her eye openings; cheek ruff flattens, ear tufts dropped; exact symmetry; bones follow, orientations
+  kept so all 19 clips fit). `STAGE=bake` adds her texture (Cycles bake onto a new unmirrored 2:1 UV layout; the lid
+  ring is baked from fur beyond her old eye openings; dark lid rim), her eye texture (pupil centered in the eye as seen
+  from the front, `PUPIL_FILL` 0.65), her whiskers on the Head bone → `art/minka/v2/minka-v2.blend` +
+  `art/minka/3d/minka-v2.glb` (the preview's default). Fur works on it: `src/ui/fur.ts` takes the model's axes
+  (`FurFrame`; v2 faces +z) and shortens fur by distance to the eyeballs; per-model brush file `furMaskFile()`.
+- **Versions are kept (her rule, 2026-10-02):** every iteration goes into `art/minka/versions/<date>-<id>/` via
+  `python3 scripts/minka/snapshot.py` (model, .blend, previews, the scripts that built it, notes); `index.json` names
+  the `current` one, which the preview opens; its Version menu switches. **Current: Toon Minka 7** (stripes and eye area painted in 3D after her film stills, `minka_toon_texture.py`) (`build_toon_minka.py`: Minka's legs, head 1.2×, tail 0.6×; the pack's painting in her colors via its ID map, `minka_toon_texture.py` — never map her baked texture onto the toon face, it went creepy in Toon 4; shell fur, bare ear tufts via the `_fur` attribute, black whiskers) —
+  from Toon Minka 1, which she chose 2026-10-02 as the starting point; made more Minka-like one step at a time.
+- **Minka is in the game (2026-10-02):** `src/ui/minkacat.ts` replaces the drawn kitten on the rack corner (same
+  reactions in `kitty.ts`: idles / sleep / hop / pounce / jumps / petted; `?kitty=classic` shows the old kitten, which
+  also stays if 3D fails). The game loads `public/minka/minka.glb` — a kept version published with
+  `blender -b --python scripts/blender/export_game_minka.py -- art/minka/versions/<id>/minka-toon.blend` (JPEG
+  textures, ~1.9 MB; `public/minka/VERSION` names it). Iterating in the previewer never changes the game. In the game
+  now: Toon Minka 7. **Only the published `minka.glb` goes into git**: `art/` and the `Toon Cats/` pack are
+  `.gitignore`d (the pack is licensed; never commit or redistribute its files; the repo is public).
+- **RummyCat's cat = the cartoon Minka (decided 2026-10-01).** First attempt below (cartoon-1) was rejected; we restart
+  from Toon Minka 1. A cartoon version of Minka on the purchased Toon Cats
+  mesh (its eyes work; it must not look like the box cats). `scripts/blender/cartoon_texture.py` (her v2-baked
+  markings, made painterly) → `scripts/blender/build_minka_cartoon.py` (toon shape blended `ALPHA` 0.45 toward v2,
+  kitten proportions, ruff outline tucked in, ear tufts dropped, dark eye rims as a vertex color, pupils centered
+  from the front, v2 whiskers) → `art/minka/toon/minka-cartoon.blend` + `art/minka/3d/minka-cartoon.glb` (preview default,
+  no shell fur). Animations to improve as we go.
+- **The realistic Minka is parked** until the game is done; reminder task `remind-realistic-minka` fires 2026-10-06.
+  Pick it up in its own thread.
+- **v2 judged an "epic fail … uncanny" (2026-10-01).** Open picker on how to make her from here:
+  https://claude.ai/artifact/KG25KaiqByVRK1uij6vdQB (`picks/minka-direction`, questions `minkaMethod`, `firstClip`;
+  source `docs/minka-direction-picker.html`). Read the store before building.
+- The Tripo Minka below the toon one (rig, catwalk, add_eyeballs) is kept but no longer the main path.
+- Next: her reactions (walk over the table,
+  swipe tiles, lick paws), Medhe's UE cats as a possible base (needs a file + his OK). Name under discussion:
+  "RummyCat" (Rummikub-like names are a trademark risk; see the name section).
+
 ## Testing tips
 - Two players in one browser: open the invite link with `?fresh` before the `#` in a second tab.
 - `?lab` (dev server) shows the six tile finishes; ⌘⇧D in a game opens the dev panel.

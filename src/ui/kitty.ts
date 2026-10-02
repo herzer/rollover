@@ -1,6 +1,6 @@
 // The kitten (2026-09-30, Stefanie: "add some kitten love"). It sits on the rack, naps while others
 // play, perks up on your turn, sends hearts when you lay a good meld, rolls over on a rollover run,
-// celebrates a win — and purrs when you pet it.
+// celebrates a win — and purrs when you pet it. Since 2026-10-02 the kitten is Minka in 3D (minkacat.ts).
 
 import { sfx } from './sound';
 
@@ -43,10 +43,15 @@ export const KITTEN_FACE = `<svg class="kface" viewBox="20 2 80 74" aria-hidden=
   <path d="M54 56 q3 3 6 0 q3 3 6 0" stroke="#3b2a20" stroke-width="2" fill="none" stroke-linecap="round"/>
 </svg>`;
 
+// Minka in 3D is the mascot (2026-10-02); ?kitty=classic shows the drawn kitten, which also stays when 3D cannot load
+const CLASSIC = new URLSearchParams(location.search).get('kitty') === 'classic';
+type Cat = { setAwake(a: boolean): void; happy(): void; rollover(): void; party(): void; pet(): void };
+
 export class Kitty {
   el: HTMLElement;
   private mood: 'awake' | 'sleep' = 'awake';
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private cat: Cat | null = null;
 
   constructor(host: HTMLElement) {
     this.el = document.createElement('button');
@@ -55,14 +60,30 @@ export class Kitty {
     this.el.title = 'Pet the kitten';
     this.el.addEventListener('click', () => this.pet());
     host.appendChild(this.el);
+    if (!CLASSIC) this.bringMinka();
+  }
+
+  /** Minka, her own 3D model (src/ui/minkacat.ts), loaded in the background; the drawn kitten shows until she is here. */
+  private async bringMinka() {
+    const { MinkaCat } = await import('./minkacat');
+    this.el.classList.add('minka3d');
+    const cat = await MinkaCat.create(this.el);
+    if (!cat) { this.el.classList.remove('minka3d'); return; }
+    this.el.querySelector('svg')?.remove();
+    this.cat = cat;
+    cat.setAwake(this.mood === 'awake');
+    this.place(this.at[0], this.at[1]);
   }
 
   setTitle(text: string) { this.el.title = text; }
 
-  /** Sits on the top-right corner of the rack. */
+  private at: [number, number] = [0, 0];
+  /** Sits on the top-right corner of the rack (Minka is larger: her bottom-right corner sits where the kitten's did). */
   place(x: number, y: number) {
-    this.el.style.left = `${x}px`;
-    this.el.style.top = `${y}px`;
+    this.at = [x, y];
+    const dx = this.cat ? 84 - this.el.offsetWidth : 0, dy = this.cat ? 73 - this.el.offsetHeight : 0;
+    this.el.style.left = `${x + dx}px`;
+    this.el.style.top = `${y + dy}px`;
   }
 
   setAwake(awake: boolean) {
@@ -70,6 +91,7 @@ export class Kitty {
     if (mood === this.mood) return;
     this.mood = mood;
     this.el.classList.toggle('sleep', !awake);
+    this.cat?.setAwake(awake);
   }
 
   private flash(cls: string, ms: number) {
@@ -94,8 +116,8 @@ export class Kitty {
     }
   }
 
-  happy() { this.flash('happy', 1600); this.hearts(3); }
-  rollover() { this.flash('roll', 1400); this.hearts(2); }
-  party() { this.flash('party', 3200); this.hearts(8); sfx.meow(); }
-  pet() { this.el.classList.remove('sleep'); this.flash('happy', 1800); this.hearts(4); sfx.purr(); }
+  happy() { this.flash('happy', 1600); this.hearts(3); this.cat?.happy(); }
+  rollover() { this.flash('roll', 1400); this.hearts(2); this.cat?.rollover(); }
+  party() { this.flash('party', 3200); this.hearts(8); sfx.meow(); this.cat?.party(); }
+  pet() { this.el.classList.remove('sleep'); this.flash('happy', 1800); this.hearts(4); sfx.purr(); this.cat?.pet(); }
 }

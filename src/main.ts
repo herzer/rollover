@@ -220,6 +220,8 @@ function lobby(c: Client) {
 
 /** Dev-only tile lab: the six finishes on felt and on the rack, for judging the look. */
 function lab() {
+  if (new URLSearchParams(location.search).get('lab') === 'kitten') { kittenLab(); return; }
+  if (['minka3d', 'minka'].includes(new URLSearchParams(location.search).get('lab') ?? '')) { minkaLab(); return; }
   const mk = (color: 0 | 1 | 2 | 3, num: number, joker = false, star = false): Tile => ({ id: -1, color, num, joker, star });
   const row = (tiles: Tile[], tw: number) => tiles.map((x) => `<span class="${tileClass(x)}" style="position:relative;--tw:${tw}px;--th:${Math.round(tw * 1.32)}px;--pos:none">${tileHTML(x)}</span>`).join('');
   const set = [mk(0, 12), mk(0, 13), mk(0, 1, false, true), mk(1, 7), mk(2, 7), mk(3, 7), mk(0, 0, true)];
@@ -230,6 +232,52 @@ function lab() {
     <div class="${f}" style="display:flex;flex-direction:column;gap:10px">
       <div class="board" style="width:auto;height:auto;padding:26px 24px 34px;display:flex;gap:7px">${row(set, 58)}</div>
       <div class="rack" style="width:auto;height:auto;padding:12px 18px 18px;display:flex;gap:5px">${row(set, 40)}</div></div>`).join('')}</div>`;
+}
+
+/** Dev-only: the 3D kitten prototype, on the felt and on the rack. */
+async function kittenLab() {
+  const { Kitten3D } = await import('./ui/kitten3d');
+  const look = (new URLSearchParams(location.search).get('look') ?? 'ginger') as 'ginger';
+  document.body.className = 'friendly pal-lilac ts-3d';
+  app.innerHTML = `<div style="padding:24px;display:flex;flex-direction:column;gap:16px;align-items:center">
+    <div class="board" style="width:760px;height:auto;padding:20px;display:flex;justify-content:center" data-k></div></div>`;
+  const k = new Kitten3D(420, 420, look);
+  app.querySelector('[data-k]')!.appendChild(k.canvas);
+  (window as unknown as { kitten: unknown }).kitten = k;
+}
+
+/** Dev-only: the Tripo 3D Minka in a turntable viewer. */
+async function minkaLab() {
+  const { minkaViewer } = await import('./ui/minka3d');
+  // ?lab=minka is the preview: her current model, as she will render in the game, to turn around
+  const preview = new URLSearchParams(location.search).get('lab') === 'minka' || new URLSearchParams(location.search).has('preview');
+  // the preview opens the current kept version (art/minka/versions/index.json, scripts/minka/snapshot.py)
+  type Versions = { current: string; versions: { id: string; date: string; title: string; model: string }[] };
+  let versions: Versions | null = null;
+  try { const r = await fetch('art/minka/versions/index.json', { cache: 'no-store' }); if (r.ok) versions = await r.json(); } catch { /* none kept yet */ }
+  const current = versions?.versions.find((x) => x.id === versions!.current)?.model;
+  const file = new URLSearchParams(location.search).get('file') ?? (preview ? current ?? 'art/minka/3d/minka-toon.glb' : 'art/minka/3d/minka-walk.glb');
+  document.body.className = 'friendly pal-lilac';
+  app.innerHTML = `<div data-v style="position:relative;width:100vw;height:100vh"></div>`;
+  const q = new URLSearchParams(location.search);
+  const v = await minkaViewer(app.querySelector('[data-v]')!, file, q.get('fur') !== '0', q.get('furlen') ? Number(q.get('furlen')) : undefined);
+  // reproducible shots: &cam=x,y,z&at=x,y,z
+  const vec = (k: string) => q.get(k)?.split(',').map(Number) as [number, number, number] | undefined;
+  const cam = vec('cam'), at = vec('at');
+  if (at) v.controls.target.set(...at);
+  if (cam) v.camera.position.set(...cam);
+  v.controls.update();
+  document.body.dataset.ready = '1';
+  (window as unknown as { minka: unknown }).minka = v;
+  if (preview) {
+    const { installPreview } = await import('./ui/minkapreview');
+    installPreview(app.querySelector('[data-v]')!, v, v.animations, versions?.versions ?? [], file);
+  }
+  if (q.has('furbrush') && v.body) {
+    const { installFurBrush } = await import('./ui/furbrush');
+    const brush = installFurBrush({ host: app.querySelector('[data-v]')!, canvas: v.renderer.domElement, camera: v.camera, controls: v.controls, body: v.body, mask: v.mask, file });
+    (window as unknown as { furBrush: unknown }).furBrush = brush;
+  }
 }
 
 function boot() {
