@@ -14,7 +14,10 @@ from mathutils import Vector
 from mathutils.kdtree import KDTree
 src, dst = sys.argv[sys.argv.index('--') + 1:][:2]
 SIZE = 2048
-LAM_BODY, LAM_LEG, LAM_NECK, TAIL_RINGS = 0.0165, 0.015, 0.009, 7
+LAM_BODY, LAM_LEG, LAM_NECK, TAIL_RINGS = 0.021, 0.015, 0.009, 7
+# Calmer stripes (2026-10-03, after Toon 14 read as zebra/wood grain): wider apart (was 1.65 cm), thinner, broken into
+# dashes more often, their darkness varying along them, softer edges; the bands turn into rings only partway down a
+# leg (the swirls sat at the shoulder and hip). And her chest: a soft cream bib with hair strokes and faint spots.
 
 ob = bpy.data.objects['MinkaToon']; me = ob.data; mw = ob.matrix_world
 eye_i = next(i for i, m in enumerate(me.materials) if m and 'Eyes' in m.name)
@@ -142,8 +145,9 @@ SH, HP = J('Shoulder_L'), J('Thigh_L')
 RING = 1.1
 def bend(w, y_at, z_at):
     return w * (y_at - Ya), w * (RING - 0.35) * (z_at - Za)
-dyF, dzF = bend(wF, SH[1], SH[2] - 0.05)
-dyH, dzH = bend(wH, HP[1], HP[2] - 0.05)
+wFb, wHb = ss(0.35, 0.85, wF), ss(0.35, 0.85, wH)                 # the upper leg keeps the body's bands
+dyF, dzF = bend(wFb, SH[1], SH[2] - 0.05)
+dyH, dzH = bend(wHb, HP[1], HP[2] - 0.05)
 phi = (Ya + dyF + dyH + 0.35 * (ztop - Za) + dzF + dzH) / LAM_BODY
 # the neck lines start where Gemini's forehead lines cross into the back-of-head patch
 face = PIECE == 0; neckp = PIECE == 6
@@ -169,8 +173,9 @@ for p in (peaks or [0.0, 0.008]):
 
 wb = np.clip(1 - wF - wH - wT, 0, 1); tot = np.ones_like(wb)
 ragged = 0.22 * vnoise(Pp, 140, 1) + 0.06 * vnoise(Pp * np.array([1, 2.5, 1], np.float32), 700, 2)
-bands = ss(0.6, 0.72, 0.5 + 0.5 * np.cos(2 * np.pi * (phi + ragged)))
-broken = ss(-0.25, 0.15, vnoise(Pp, 75, 5) + 0.35)                                         # gaps: dashes, not hoops
+bands = ss(0.66, 0.78, 0.5 + 0.5 * np.cos(2 * np.pi * (phi + ragged)))
+broken = ss(-0.15, 0.2, vnoise(Pp, 55, 5) + 0.15)                                         # gaps: dashes, not hoops
+broken = broken * (0.55 + 0.45 * ss(-0.5, 0.5, vnoise(Pp, 30, 9)))                         # darker and lighter stretches
 bands = bands * broken
 # toward the belly the bands break up into spots; the legs' rings fade toward the light toes
 belly = 1 - ss(0.10, 0.15, Za)
@@ -183,9 +188,19 @@ wn = ss(0.15, 0.65, wN) * (1 - ss(0.018, 0.028, Xa))      # lengthwise lines on 
 tail_tip = ss(0.86, 0.94, (Ya - t0) / max(t1 - t0, 1e-6)) * (wT > 0.5)
 m = np.maximum(bands * (1 - wn), neck_lines * wn)
 m = np.maximum(m, np.maximum(spine * (1 - wn * 0.5), tail_tip))
-bib = ss(0.35, 0.75, -NY) * (1 - ss(SH[2] - 0.02, SH[2] + 0.03, Za)) * (1 - ss(0.3, 0.6, wF + wH))
+bib = ss(0.35, 0.75, -NY) * (1 - ss(SH[2] + 0.02, SH[2] + 0.07, Za)) * (1 - ss(0.3, 0.6, wF + wH))   # up the throat to her chin
 m = m * (1 - 0.85 * bib)                                                                   # her light chest
-m = box(m, 1) * body * ~pink
+m = box(m, 2) * body * ~pink
+# her chest: Gemini's base there was a flat gray after its stripes came off. A soft cream bib instead, with hair strokes
+# running down the chest and a few faint spots, fading into the coat at the sides
+light = body & ~pink & ~dark & (luma > np.percentile(luma[body & ~dark], 85))
+cream = np.median(rgb[light], 0)
+hair = vnoise(Pp * np.array([1, 1, 0.12], np.float32), 1100, 11) * 0.07 + vnoise(Pp * np.array([1, 1, 0.3], np.float32), 450, 12) * 0.04
+chest = ss(0.05, 0.45, bib) * body * ~pink
+faint = ss(0.5, 0.7, vnoise(Pp, 140, 13)) * 0.12 * chest
+base = base * (1 - chest[..., None] * 0.97) + cream * (1 + hair[..., None]) * chest[..., None] * 0.97
+m = np.maximum(m, faint)
+print('chest bib %.1f%% of the body, cream %s' % (100 * (chest > 0.5).sum() / body.sum(), cream.round(3)))
 # the stripe color: Gemini's, with a little life in it
 col = stripe_rgb * (0.9 + 0.2 * (0.5 + 0.5 * vnoise(Pp, 60, 8)))[..., None]
 out = np.where(body[..., None], base * (1 - m[..., None] * 0.92) + col * m[..., None] * 0.92, rgb)

@@ -107,7 +107,7 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   (`FurFrame`; v2 faces +z) and shortens fur by distance to the eyeballs; per-model brush file `furMaskFile()`.
 - **Versions are kept (her rule, 2026-10-02):** every iteration goes into `art/minka/versions/<date>-<id>/` via
   `python3 scripts/minka/snapshot.py` (model, .blend, previews, the scripts that built it, notes); `index.json` names
-  the `current` one, which the preview opens; its Version menu switches. **Current: Toon Minka 13** (2026-10-02, Toon 12 + the cheek ruff tucked in: tufts smoothed, fringe laid flat, head outline fitted to Minka's width):
+  the `current` one, which the preview opens; its Version menu switches. **Current: Toon Minka 15** (2026-10-03: calmer stripes and a cream chest bib, `coat-minka-calm.png`; the base for painting in ArmorPaint; the game has Toon 14). Toon 13 (2026-10-02) = Toon 12 + the cheek ruff tucked in:
   Stefanie's Gemini repaint of the coat (`art/minka/gemini/`, adopted by `scripts/blender/adopt_coat.py`: gaps filled,
   Gemini's misplaced tail and paw removed, its painted whiskers taken off), on **Minka's build** (`build_toon_minka.py`
   FIT: body, neck, legs and toes take her place relative to the bones, from the v2 fit; head raised `NECK_UP` 0.75 —
