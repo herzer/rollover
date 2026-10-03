@@ -162,9 +162,9 @@ export class Host {
     this.scheduleTurnTimer();
   }
 
-  /** The turn time limit (rules.turnSeconds): a person whose time runs out has their turn ended with a drawn tile,
-   *  exactly as if they had pressed Draw — their laid tiles were never committed, so they are simply back on the
-   *  rack. A little grace covers the network. Computer players are never timed. */
+  /** The turn time limit (rules.turnSeconds): a person whose time runs out has their turn ended and draws 3 tiles as a
+   *  penalty, as in the official rules (2026-10-02) — their laid tiles were never committed, so they are simply back
+   *  on the rack. A little grace covers the network. Computer players are never timed. */
   private scheduleTurnTimer() {
     if (this.turnTimer) clearTimeout(this.turnTimer);
     this.turnTimer = null;
@@ -175,7 +175,7 @@ export class Host {
     this.turnTimer = setTimeout(() => {
       const now = this.state;
       if (!now || now.seq !== seq || now.phase !== 'playing') return;
-      const r = drawTile(now, now.turn);
+      const r = drawTile(now, now.turn, 3);
       if (!r.ok) return;
       const last = r.state.log[r.state.log.length - 1];
       if (last && (last.k === 'draw' || last.k === 'pass')) last.timeout = true;

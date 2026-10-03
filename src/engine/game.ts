@@ -32,7 +32,7 @@ export interface Reveal {
 
 export type LogEntry =
   | { k: 'play'; p: number; tiles: number; rollover: boolean; opened: boolean }
-  | { k: 'draw'; p: number; timeout?: boolean }
+  | { k: 'draw'; p: number; timeout?: boolean; n?: number }
   | { k: 'pass'; p: number; timeout?: boolean }
   | { k: 'star'; p: number; star: StarKind; target: number }
   | { k: 'win'; p: number }
@@ -178,12 +178,13 @@ export function randomStar(): StarKind {
   return kinds[Math.floor(Math.random() * kinds.length)];
 }
 
-/** Draw a tile (or pass when the pool is empty) and end the turn. */
-export function drawTile(state: GameState, seat: number): CommitResult {
+/** Draw a tile (or pass when the pool is empty) and end the turn. `count` 3 is the penalty when a turn runs out of
+ *  time (the official rule, 2026-10-02) — as many as the pool still has. */
+export function drawTile(state: GameState, seat: number, count = 1): CommitResult {
   if (state.phase !== 'playing' || state.turn !== seat) return { ok: false, error: 'not-your-turn' };
   const s = structuredClone(state) as GameState;
-  const id = s.pool.shift();
-  if (id === undefined) {
+  const ids = s.pool.splice(0, count);
+  if (!ids.length) {
     s.passes += 1;
     s.log.push({ k: 'pass', p: seat });
     if (s.passes >= s.players.length) {
@@ -194,8 +195,8 @@ export function drawTile(state: GameState, seat: number): CommitResult {
       return { ok: true, state: endRound(s, best) };
     }
   } else {
-    s.players[seat].rack.push(id);
-    s.log.push({ k: 'draw', p: seat });
+    s.players[seat].rack.push(...ids);
+    s.log.push(count > 1 ? { k: 'draw', p: seat, n: ids.length } : { k: 'draw', p: seat });
   }
   return { ok: true, state: advance(s) };
 }

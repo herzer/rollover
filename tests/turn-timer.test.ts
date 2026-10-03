@@ -18,8 +18,8 @@ it('ends a turn that runs out of time, and only that one', () => {
     vi.advanceTimersByTime(2600);                                   // 30 s plus the network grace
     const s1 = h.state!;
     expect(s1.seq).not.toBe(s0.seq);
-    expect(s1.players[0].rack.length).toBe(rack0 + 1);             // the turn ended with a drawn tile
-    expect(s1.log[s1.log.length - 1]).toMatchObject({ k: 'draw', p: 0, timeout: true });
+    expect(s1.players[0].rack.length).toBe(rack0 + 3);             // the turn ended with 3 penalty tiles
+    expect(s1.log[s1.log.length - 1]).toMatchObject({ k: 'draw', p: 0, n: 3, timeout: true });
   } finally { vi.useRealTimers(); }
 });
 
@@ -39,4 +39,15 @@ it('never times out a turn that already ended', () => {
     expect(h.state!.turn).toBe(0);
     expect(Date.now() - h.state!.turnStartedAt).toBeLessThan(30000);
   } finally { vi.useRealTimers(); }
+});
+
+it('the penalty takes what the pool still has, and passes when it is empty', async () => {
+  const { newGame, drawTile } = await import('../src/engine/game');
+  const s = newGame([{ id: 'a', name: 'A', kind: 'human' }, { id: 'b', name: 'B', kind: 'ai', level: 2 }], { rollover: true, stars: false, openingMin: 30 }, 7);
+  const low = { ...s, pool: s.pool.slice(0, 2) };
+  const r = drawTile(low, low.turn, 3);
+  expect(r.ok && r.state.players[low.turn].rack.length).toBe(low.players[low.turn].rack.length + 2);
+  expect(r.ok && r.state.log[r.state.log.length - 1]).toMatchObject({ k: 'draw', n: 2 });
+  const empty = drawTile({ ...s, pool: [] }, s.turn, 3);
+  expect(empty.ok && empty.state.log[empty.state.log.length - 1]).toMatchObject({ k: 'pass' });
 });

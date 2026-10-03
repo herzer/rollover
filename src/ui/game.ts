@@ -446,10 +446,10 @@ export class GameView {
         else if (e.opened && e.p !== this.seat) this.toast(t().log.open(name(e.p)));
         break;
       case 'draw':
-        if (e.timeout) this.toast(e.p === this.seat ? t().timeUpMine(true) : t().timeUp(s.players[e.p]?.name ?? '?', true), e.p === this.seat);
+        if (e.timeout) this.toast(e.p === this.seat ? t().timeUpMine(e.n ?? 1) : t().timeUp(s.players[e.p]?.name ?? '?', e.n ?? 1), e.p === this.seat);
         else if (e.p !== this.seat) sfx.draw();
         break;
-      case 'pass': this.toast(e.timeout ? (e.p === this.seat ? t().timeUpMine(false) : t().timeUp(s.players[e.p]?.name ?? '?', false)) : t().log.pass(name(e.p))); break;
+      case 'pass': this.toast(e.timeout ? (e.p === this.seat ? t().timeUpMine(0) : t().timeUp(s.players[e.p]?.name ?? '?', 0)) : t().log.pass(name(e.p))); break;
       case 'star': {
         const card = t().star[e.star];
         setTimeout(() => { this.starCard(card.title, card.body(name(e.p), name(e.target))); sfx.star(); }, 500);

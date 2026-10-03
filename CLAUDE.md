@@ -144,7 +144,7 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   the player's chip during the game ("they need to know at what difficulty level they are playing"; she declined
   making Hard the default).
 - **Time per turn** (rules `turnSeconds`: off / 3 min / 2 min / 1 min / 30 s, default off): the host ends a person's
-  turn with a drawn tile when it runs out (`Host.scheduleTurnTimer`, 1.5 s grace; computers are never timed); the
+  turn with 3 penalty tiles when it runs out (official rule) (`Host.scheduleTurnTimer`, 1.5 s grace; computers are never timed); the
   countdown in the status line follows the host's clock (`now` in the state message → `client.clockOffset`).
   `tests/turn-timer.test.ts`.
 - She asked for a stronger opponent ("optionally"). An "Expert" (deeper search; saving jokers; then keeping the rack

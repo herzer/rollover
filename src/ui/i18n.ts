@@ -35,11 +35,14 @@ const en = {
   easy: 'Easy', medium: 'Medium', hard: 'Hard',
   computerAt: (level: string) => `computer player, ${level}`,
   turnTimeRule: 'Time per turn',
-  turnTimeTip: 'When the time runs out, the turn ends: your laid tiles go back to your rack and you draw a tile.',
+  turnTimeTip: 'When the time runs out, the turn ends: your laid tiles go back to your rack and you draw 3 tiles as a penalty.',
   turnTime: (s: number): string => (s === 0 ? 'No limit' : s >= 60 ? `${s / 60} min` : `${s} s`),
   clockTip: 'Time left in this turn',
-  timeUpMine: (drew: boolean): string => (drew ? "Time's up — your tiles went back to your rack and you drew a tile." : "Time's up — your tiles went back to your rack."),
-  timeUp: (name: string, drew: boolean): string => (drew ? `${name} ran out of time and drew a tile.` : `${name} ran out of time.`),
+  timeUpMine: (n: number): string => (n === 0 ? "Time's up — your tiles went back to your rack."
+    : n === 1 ? "Time's up — your tiles went back to your rack and you drew a penalty tile."
+    : `Time's up — your tiles went back to your rack and you drew ${n} penalty tiles.`),
+  timeUp: (name: string, n: number): string => (n === 0 ? `${name} ran out of time.`
+    : n === 1 ? `${name} ran out of time and drew a penalty tile.` : `${name} ran out of time and drew ${n} penalty tiles.`),
   levelTip: 'How clever this computer player is',
   rules: 'Rules',
   rolloverRule: 'Rollover: 13 is followed by 1',
@@ -211,11 +214,14 @@ const de: Dict = {
   easy: 'Leicht', medium: 'Mittel', hard: 'Schwer',
   computerAt: (level: string) => `Computerspieler, ${level}`,
   turnTimeRule: 'Zeit pro Zug',
-  turnTimeTip: 'Wenn die Zeit abläuft, endet der Zug: deine gelegten Steine gehen zurück auf die Bank, und du ziehst einen Stein.',
+  turnTimeTip: 'Wenn die Zeit abläuft, endet der Zug: deine gelegten Steine gehen zurück auf die Bank, und du ziehst 3 Strafsteine.',
   turnTime: (s: number): string => (s === 0 ? 'Ohne Limit' : s >= 60 ? `${s / 60} Min.` : `${s} Sek.`),
   clockTip: 'Verbleibende Zeit für diesen Zug',
-  timeUpMine: (drew: boolean): string => (drew ? 'Die Zeit ist um — deine Steine sind zurück auf der Bank, und du hast einen Stein gezogen.' : 'Die Zeit ist um — deine Steine sind zurück auf der Bank.'),
-  timeUp: (name: string, drew: boolean): string => (drew ? `${name} hatte keine Zeit mehr und hat einen Stein gezogen.` : `${name} hatte keine Zeit mehr.`),
+  timeUpMine: (n: number): string => (n === 0 ? 'Die Zeit ist um — deine Steine sind zurück auf der Bank.'
+    : n === 1 ? 'Die Zeit ist um — deine Steine sind zurück auf der Bank, und du hast einen Strafstein gezogen.'
+    : `Die Zeit ist um — deine Steine sind zurück auf der Bank, und du hast ${n} Strafsteine gezogen.`),
+  timeUp: (name: string, n: number): string => (n === 0 ? `${name} hatte keine Zeit mehr.`
+    : n === 1 ? `${name} hatte keine Zeit mehr und hat einen Strafstein gezogen.` : `${name} hatte keine Zeit mehr und hat ${n} Strafsteine gezogen.`),
   levelTip: 'Wie schlau dieser Computerspieler ist',
   rules: 'Regeln',
   rolloverRule: 'Rollover: Nach der 13 kommt die 1',
