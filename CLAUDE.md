@@ -128,6 +128,13 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   kitten proportions, ruff outline tucked in, ear tufts dropped, dark eye rims as a vertex color, pupils centered
   from the front, v2 whiskers) → `art/minka/toon/minka-cartoon.blend` + `art/minka/3d/minka-cartoon.glb` (preview default,
   no shell fur). Animations to improve as we go.
+- **Painting her coat in ArmorPaint (2026-10-03):** ArmorPaint is built from source in `~/Developer/ArmorPaint` (its own
+  thread). `python3 scripts/minka/armorpaint.py setup` makes `art/minka/armorpaint/minka.arm` (her fur without the eyes,
+  which use their own texture; her coat on the first layer; never overwrites a painted project without `--force`);
+  she paints on layers above it; `… armorpaint.py adopt` exports, bleeds past the patch edges (`bleed_coat.py`), builds
+  and keeps the next toon version (game untouched). Round trip measured lossless (0.5/255). Scripted, headless, via
+  ArmorPaint's `--script` (minic C, entry `main()`); its quirks: `--background` quits before an export unless a script
+  runs; imports and fills complete on later frames. UVs are mirrored: left and right share the texture.
 - **The realistic Minka is parked** until the game is done; reminder task `remind-realistic-minka` fires 2026-10-06.
   Pick it up in its own thread.
 - **v2 judged an "epic fail … uncanny" (2026-10-01).** Open picker on how to make her from here:
