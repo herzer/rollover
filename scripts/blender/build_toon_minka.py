@@ -317,7 +317,7 @@ for k in range(1, FLAT_RINGS + 1):
             if o not in ring and _piece[o] == 0: ring[o] = k; nxt.append(o)
     front = nxt
 flat = 0
-for i, k in ring.items():
+for i, k in (ring.items() if os.environ.get('RUFF_FLAT', '1') == '1' else []):
     if wSkip[i] > 0.05: continue
     hit = bvh.find_nearest(Vector(X[i]))
     if hit[0] is None or hit[3] > 0.03: continue
@@ -325,6 +325,24 @@ for i, k in ring.items():
     w = (1 - k / (FLAT_RINGS + 1)) ** 1.5
     X[i] += (target - X[i]) * w; flat += 1
 print('RUFF flattened', flat, 'fringe points')
+# one smooth field, not a move per shell: the face and the head are separate shells lying over each other and over the
+# neck, and moving each by its own amount opened holes between them behind the cheeks (Toon 13, 2026-10-03: "two big
+# holes on both sides of the neck head transition"). Every point near the cheeks, whatever shell it belongs to, moves
+# by the weighted average of the moves around it (within FIELD_R), so shells that overlap move together.
+from mathutils.kdtree import KDTree as _KD
+FIELD_R = 0.012
+D = X - X0
+zone = [i for i in range(len(X0)) if 0.17 < X0[i, 2] < 0.36 and abs(X0[i, 0]) > 0.03 and wSk[i] < 0.05]
+kdz = _KD(len(zone))
+for k, i in enumerate(zone): kdz.insert(Vector(X0[i]), k)
+kdz.balance()
+Dn = D.copy()
+for i in zone:
+    near = kdz.find_range(Vector(X0[i]), FIELD_R)
+    w = np.array([np.exp(-(d_ / (FIELD_R * 0.5)) ** 2) for _, _, d_ in near])
+    idx = [zone[k] for _, k, _ in near]
+    Dn[i] = (D[idx] * w[:, None]).sum(0) / w.sum()
+X = X0 + Dn
 moved = np.abs(X - X0).max(1) > 1e-7
 for kb in keys:
     for i in np.nonzero(moved)[0]: kb.data[i].co = mwi @ (mw @ kb.data[i].co + Vector(X[i] - X0[i]))

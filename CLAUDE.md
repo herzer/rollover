@@ -119,7 +119,7 @@ film stills in `Unsorted/Stills - Minka/` are the "true" Minka) becomes the game
   reactions in `kitty.ts`: idles / sleep / hop / pounce / jumps / petted; `?kitty=classic` shows the old kitten, which
   also stays if 3D fails). The game loads `public/minka/minka.glb` — a kept version published with
   `blender -b --python scripts/blender/export_game_minka.py -- art/minka/versions/<id>/minka-toon.blend` (JPEG
-  textures, ~1.9 MB; `public/minka/VERSION` names it). Iterating in the previewer never changes the game. In the game now: Toon Minka 13 (2026-10-02). **Only the published `minka.glb` goes into git**: `art/` and the `Toon Cats/` pack are
+  textures, ~1.9 MB; `public/minka/VERSION` names it). Iterating in the previewer never changes the game. In the game now: Toon Minka 14 (2026-10-03: Toon 13 without the neck holes). **Only the published `minka.glb` goes into git**: `art/` and the `Toon Cats/` pack are
   `.gitignore`d (the pack is licensed; never commit or redistribute its files; the repo is public).
 - **RummyCat's cat = the cartoon Minka (decided 2026-10-01).** First attempt below (cartoon-1) was rejected; we restart
   from Toon Minka 1. A cartoon version of Minka on the purchased Toon Cats
